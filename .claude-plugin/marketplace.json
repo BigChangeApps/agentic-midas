@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentic-midas",
+  "description": "Marketplace for the Midas team's agentic-midas plugin.",
+  "owner": {
+    "name": "Patryk Kowalczyk"
+  },
+  "plugins": [
+    {
+      "name": "agentic-midas",
+      "description": "Midas team workflows on Azure DevOps.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

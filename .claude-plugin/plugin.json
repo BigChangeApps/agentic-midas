@@ -1,0 +1,10 @@
+{
+  "name": "agentic-midas",
+  "version": "0.1.0",
+  "description": "Midas team workflows on Azure DevOps: create Bugs, Enablers and User Stories in the team format. Read-only ADO tools run freely; every change is asked first.",
+  "author": {
+    "name": "Patryk Kowalczyk"
+  },
+  "keywords": ["azure-devops", "work-items", "backlog", "midas", "bigchange"],
+  "types": "./types/index.d.ts"
+}
