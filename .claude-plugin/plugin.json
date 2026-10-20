@@ -1,7 +1,7 @@
 {
   "name": "agentic-midas",
-  "version": "0.1.0",
-  "description": "Midas team workflows on Azure DevOps: create Bugs, Enablers and User Stories in the team format. Read-only ADO tools run freely; every change is asked first.",
+  "version": "0.2.0",
+  "description": "Midas team workflows on Azure DevOps: create and refine work items in the team format, and develop user stories end to end with approval gates. Read-only ADO tools run freely; every change is asked first.",
   "author": {
     "name": "Patryk Kowalczyk"
   },

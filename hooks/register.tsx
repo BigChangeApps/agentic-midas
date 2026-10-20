@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Draft } from '../types'
+import { FEATURE_TOOL_SPEC, registerFeature } from './feature'
 
 // This plugin's server, and a user-scope one under the same name.
 const ADO = /^mcp__(plugin_agentic-midas_)?azure-devops__/
@@ -102,6 +103,8 @@ function say($: EngineInterface, text: string) {
 }
 
 export const register: Register = on => {
+  registerFeature(on)
+
   on('tool.check', { tool: ADO }, async ($, e, next) => {
     const verdict = await next(e)
     if (verdict.decision === 'deny') return verdict
@@ -119,6 +122,7 @@ export const register: Register = on => {
         'Point the band above the prompt at the Midas work item draft doc, giving the user Action comments, Create (or Update, with id) and Cancel. Call it once the draft doc exists, and again with createdId once a new item is created, or with updated: true once a refined item is saved.',
       inputSchema: SCHEMA,
     })
+    await $.tool.register(FEATURE_TOOL_SPEC)
 
     return next(e)
   })

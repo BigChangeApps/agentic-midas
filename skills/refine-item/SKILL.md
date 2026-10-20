@@ -37,7 +37,7 @@ When the item doesn't answer a question, say so plainly. That gap is often what 
 When the user asks to refine, rewrite or update it, or agrees to a change you offered:
 
 1. Start from the item's current values. Map each field to its template section, and convert rich text to markdown (the reference's Reading rule). Fields outside the template stay out of the doc and untouched.
-2. Apply the changes the user asked for or agreed to. Don't rewrite text nobody asked about. Never invent facts: unknowns go under **Still needed**.
+2. Apply the changes the user asked for or agreed to. Don't rewrite text nobody asked about, with one exception: acceptance criteria written as Given/When/Then become plain statements (the reference's rule), listed under **What changes**. Never add "Given", "When" or "Then" to criteria that don't have them. Never invent facts: unknowns go under **Still needed**.
 3. Lay the doc out as the reference says, with this section first:
 
    ```
