@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Draft } from '../types'
+import { FEATURE_TOOL_SPEC, registerFeature } from './feature'
 
 // This plugin's server, and a user-scope one under the same name.
 const ADO = /^mcp__(plugin_agentic-midas_)?azure-devops__/
@@ -53,7 +54,9 @@ export function decide(tool: string, input: unknown): 'allow' | 'ask' {
 
 export const DRAFT_TOOL = 'mcp__agentic-midas__draft_work_item'
 const ITEM_URL = 'https://dev.azure.com/bigchange/BigChange/_workitems/edit/'
-const TYPES: readonly string[] = ['Bug', 'Enabler', 'User Story']
+const ADO_URL = 'https://dev.azure.com/bigchange/'
+const TESTS = 'Test cases'
+const TYPES: readonly string[] = ['Bug', 'Enabler', 'User Story', TESTS]
 
 // What the band's buttons say for the person.
 export const ACTION = 'Action the comments on the draft doc.'
@@ -61,18 +64,20 @@ export const CREATE = 'Create it.'
 export const CANCEL = "Cancel, don't create this work item."
 export const UPDATE = 'Update it.'
 export const CANCEL_UPDATE = "Cancel, don't update this work item."
+export const CANCEL_TESTS = "Cancel, don't create these test cases."
 
 const draft = atom({ plugin: 'agentic-midas', key: 'draft' } as const, null)
 
 const SCHEMA = {
   type: 'object',
   properties: {
-    type: { enum: TYPES },
+    type: { enum: TYPES, description: '"Test cases" for a test case draft, with id' },
     title: { type: 'string' },
     url: { type: 'string', description: "The draft doc's claude.ai link" },
     createdId: { type: 'integer', description: 'The new work item id, once it is created' },
-    id: { type: 'integer', description: 'The existing work item being refined' },
+    id: { type: 'integer', description: 'The existing work item being refined, or the one the test cases are for' },
     updated: { type: 'boolean', description: 'true once the refined item is saved in Azure DevOps' },
+    suiteUrl: { type: 'string', description: 'The test suite link, once the test cases are created' },
   },
   required: ['type', 'title', 'url'],
 }
@@ -85,7 +90,8 @@ export function parseDraft(input: unknown): Draft | null {
   const i = (input ?? {}) as Record<string, unknown>
   const isValid =
     isText(i.type) && TYPES.includes(i.type) && isText(i.title) && isText(i.url) && i.url.startsWith('https://claude.ai/')
-  if (!isValid) return null
+  // Test cases are always for an item.
+  if (!isValid || (i.type === TESTS && asId(i.id) === undefined)) return null
 
   return {
     type: i.type as Draft['type'],
@@ -94,7 +100,45 @@ export function parseDraft(input: unknown): Draft | null {
     createdId: asId(i.createdId),
     id: asId(i.id),
     updated: i.updated === true || undefined,
+    suiteUrl: isText(i.suiteUrl) && i.suiteUrl.startsWith(ADO_URL) ? i.suiteUrl : undefined,
   }
+}
+
+// The commands the session title names, and their label.
+const COMMANDS: Record<string, string> = {
+  'new-item': 'New item',
+  'refine-item': 'Refine',
+  feature: 'Feature',
+  'test-cases': 'Test cases',
+}
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|feature|test-cases)(?:\s+([\s\S]*))?$/
+const TITLE_MAX = 80
+
+export type Command = { label: string; id?: number; brief: string }
+
+// `/agentic-midas:test-cases AB#361294` → its label and the work item id (digits, #id, AB#id or a link).
+export function parseCommand(prompt: string): Command | null {
+  const [, name = '', args = ''] = COMMAND.exec(prompt.trim()) ?? []
+  const label = COMMANDS[name]
+  if (!label) return null
+
+  const brief = args.trim()
+  const id = name === 'new-item' ? undefined : brief.match(/\d{3,}/)?.[0]
+  return { label, id: id ? Number(id) : undefined, brief }
+}
+
+// `Test cases #361294: Display quote activity`, so the session list says which item it is.
+export function titleFor(cmd: Command, itemTitle?: string): string | undefined {
+  const name = cmd.id ? `${cmd.label} #${cmd.id}${itemTitle ? `: ${itemTitle}` : ''}` : cmd.brief && `${cmd.label}: ${cmd.brief}`
+  if (!name) return undefined
+  return name.length > TITLE_MAX ? `${name.slice(0, TITLE_MAX - 1)}…` : name
+}
+
+// The item's title from ADO, through the az CLI sign-in the MCP server uses; none if az is slow or fails.
+async function itemTitle($: EngineInterface, id: number): Promise<string | undefined> {
+  const argv = ['az', 'boards', 'work-item', 'show', '--org', ADO_URL, '--id', String(id), '--query', 'fields."System.Title"', '-o', 'tsv']
+  const r = await $.process.run(argv, { timeoutMs: 5000 }).catch(() => null)
+  return r?.exitCode === 0 ? r.stdout.trim() || undefined : undefined
 }
 
 function say($: EngineInterface, text: string) {
@@ -102,6 +146,8 @@ function say($: EngineInterface, text: string) {
 }
 
 export const register: Register = on => {
+  registerFeature(on)
+
   on('tool.check', { tool: ADO }, async ($, e, next) => {
     const verdict = await next(e)
     if (verdict.decision === 'deny') return verdict
@@ -112,13 +158,24 @@ export const register: Register = on => {
   // The draft tool only sets what the band shows.
   on('tool.check', { tool: DRAFT_TOOL }, () => ({ decision: 'allow' }))
 
+  // Name the session after the item a command works on, not the command.
+  on('classic.UserPromptSubmit', async ($, e, next) => {
+    const result = await next(e)
+    const cmd = parseCommand(e.prompt)
+    if (!cmd || result.block) return result
+
+    const sessionTitle = titleFor(cmd, cmd.id ? await itemTitle($, cmd.id) : undefined)
+    return sessionTitle ? { ...result, sessionTitle } : result
+  }).catch(() => ({}))
+
   on('session.start', async ($, e, next) => {
     await $.tool.register({
       name: 'draft_work_item',
       description:
-        'Point the band above the prompt at the Midas work item draft doc, giving the user Action comments, Create (or Update, with id) and Cancel. Call it once the draft doc exists, and again with createdId once a new item is created, or with updated: true once a refined item is saved.',
+        'Point the band above the prompt at the Midas draft doc (a work item, or test cases for one), giving the user Action comments, Create (or Update, when refining) and Cancel. Call it once the draft doc exists, and again with createdId once a new item is created, updated: true once a refined item is saved, or suiteUrl once test cases are created.',
       inputSchema: SCHEMA,
     })
+    await $.tool.register(FEATURE_TOOL_SPEC)
 
     return next(e)
   })
@@ -129,10 +186,10 @@ export const register: Register = on => {
 
     await update($, draft, () => d)
 
-    if (d.createdId || d.updated) return { result: 'The band shows the saved item.' }
+    if (d.createdId || d.updated || d.suiteUrl) return { result: 'The band shows the saved item.' }
 
     return {
-      result: `The band above the prompt now offers Open doc, Action comments, ${d.id ? 'Update' : 'Create'} and Cancel for this draft.`,
+      result: `The band above the prompt now offers Open doc, Action comments, ${d.id && d.type !== TESTS ? 'Update' : 'Create'} and Cancel for this draft.`,
     }
   })
 
@@ -142,6 +199,18 @@ export const register: Register = on => {
 
     const { Box, Button, Link, Text } = $.ui.resolve(e)
     const clear = () => update($, draft, () => null)
+
+    const isTests = d.type === TESTS
+
+    if (isTests && d.suiteUrl) {
+      return (
+        <Box flexDirection="row" alignItems="center" gap={1}>
+          <Text>Created test cases for #{d.id}</Text>
+          <Link href={d.suiteUrl} label="Open suite" />
+          <Button key="dismiss" label="Dismiss" plain onPress={clear} />
+        </Box>
+      )
+    }
 
     const savedId = d.createdId ?? (d.updated ? d.id : undefined)
 
@@ -157,13 +226,14 @@ export const register: Register = on => {
       )
     }
 
-    const isRefine = d.id !== undefined
+    const isRefine = d.id !== undefined && !isTests
+    const heading = isTests ? `Test cases #${d.id}` : isRefine ? `Refine ${d.type} #${d.id}` : `${d.type} draft`
 
     // One row: the title gives way (truncates) so the buttons keep their size.
     return (
       <Box flexDirection="row" alignItems="center" gap={1}>
         <Box flexShrink={0}>
-          <Text bold>{isRefine ? `Refine ${d.type} #${d.id}` : `${d.type} draft`}</Text>
+          <Text bold>{heading}</Text>
         </Box>
         <Box flexGrow={1} flexShrink={1} minWidth={0}>
           <Text wrap="truncate">{d.title}</Text>
@@ -185,7 +255,7 @@ export const register: Register = on => {
                 label="Cancel"
                 onPress={async () => {
                   await clear()
-                  say($, isRefine ? CANCEL_UPDATE : CANCEL)
+                  say($, isTests ? CANCEL_TESTS : isRefine ? CANCEL_UPDATE : CANCEL)
                 }}
               />
             </Box>

@@ -1,6 +1,6 @@
 # Midas work items: shared reference
 
-Used by `/new-item` and `/refine-item`.
+Used by `/new-item`, `/refine-item` and `/test-cases`.
 
 ## Team defaults
 
@@ -116,17 +116,23 @@ Description:
   I want to... <goal>
   So I can... <value>
   (optional: a Details paragraph with background, scope or constraints)
-Acceptance criteria: Given / When / Then scenarios (2 to 4)
+Acceptance criteria: Bullet points, each one plain testable statement
 Vertical slice: Yes / No
 ```
 
-Title example: "Display quote activity, including edits". Write the acceptance criteria as grouped bullets instead of scenarios if the user asks.
+Title example: "Display quote activity, including edits".
+
+**Acceptance criteria are plain statements of what must be true.** Never start a point with "Given", "When" or "Then", and never write Given/When/Then scenarios, even when an existing item uses them (unless the user asks to keep them). For example:
+
+- The Activity tab lists every quote event, newest first.
+- Each edit entry shows who made it, when, and the old and new values.
+- A quote with no activity shows "No activity yet".
 
 | Field | ADO field | Value |
 |---|---|---|
 | Title | `System.Title` | text |
 | Description | `System.Description` | Html: `<div><b>As a...&nbsp;</b>…</div><div><b>I want to...&nbsp;</b>…</div><div><b>So I can...&nbsp;</b>…</div>`, then `<div><br></div><div><b>Details</b></div><div>…</div>` if there are details |
-| Acceptance criteria | `Microsoft.VSTS.Common.AcceptanceCriteria` | Html, per scenario: `<div><b>Name</b></div><div><b>Given...&nbsp;</b>…</div><div><b>When...&nbsp;</b>…</div><div><b>Then...&nbsp;</b>…</div><div><br></div>` |
+| Acceptance criteria | `Microsoft.VSTS.Common.AcceptanceCriteria` | Html `<ul><li>…</li></ul>` |
 | Vertical slice | `Custom.VerticalSlice` | `Yes` (default) / `No` |
 | (on create) | `Custom.AITicketCreation` | `Yes` |
 
@@ -140,3 +146,48 @@ Title example: "Display quote activity, including edits". Write the acceptance c
 | Parent | a parent link (`wit_work_item_link_write`, type `parent`), not a field |
 
 Set `System.AssignedTo` (email) only when the user asks.
+
+---
+
+## Test plans
+
+Used by `/test-cases`.
+
+| What | Convention |
+|---|---|
+| Plan | One per sprint: `Midas_Stories_<sprint>`, e.g. `Midas_Stories_122`. Area `BigChange\Finance\Midas`, iteration the sprint's path (`BigChange\Midas\122`) |
+| Suite | One per work item, under the plan's root suite: `<id> : <title>`. Requirement-based, so it lists every test case linked to the item |
+| Test case | Area `BigChange\Finance\Midas`, iteration the sprint's path, a Tested By link to the item, Priority 1 for core criteria and 2 for the rest |
+| Suite link | `https://dev.azure.com/bigchange/BigChange/_testPlans/define?planId=<plan>&suiteId=<suite>` |
+
+---
+
+## Repos, branches, commits and pull requests
+
+Used by `/feature`.
+
+**Base branch:** the repo's `origin/HEAD`, normally `main`; some repos use `master`. **`BigChange` always uses `WebRelease2`.** Feature work never lands straight on a base branch.
+
+**Branch:** `feature/<id>-<slug>`, or `bugfix/` for a Bug. The slug is lowercase kebab-case, 3–6 words and at most 50 characters, for example `feature/358633-improve-error-handling`. Offer 3 names with AskUserQuestion, the best first and marked (Recommended). Use the same name in every repo in scope. For each repo:
+
+```bash
+git -C <repo> status --porcelain          # dirty → stop and ask; never stash, reset or discard on your own
+git -C <repo> fetch origin --prune
+git -C <repo> remote set-head origin --auto
+git -C <repo> symbolic-ref --short refs/remotes/origin/HEAD   # → origin/<base>
+git -C <repo> switch --no-track -c <branch> origin/<base>
+```
+
+`--no-track` keeps a later push from targeting the base branch. If the branch already exists, ask whether to switch to it instead.
+
+**Commit:** only after the user has reviewed the uncommitted changes. Use `feat: #<id> <summary>` or `fix: #<id> <summary>`; `#<id>` links the work item in Azure Repos. Stage the feature's files by name, and ask about any changed file the feature didn't touch.
+
+**Pull request:** one per repo, created as a draft and linked to the work item:
+
+```bash
+az repos pr create --org https://dev.azure.com/bigchange --project BigChange --repository <repo> \
+  --source-branch <branch> --target-branch <base> --draft true --work-items <id> \
+  --title "feat: #<id> <title>" --description "<summary link, spec link, sibling PRs, merge order>"
+```
+
+Never merge, force-push, delete branches, or change git state nobody asked for.
