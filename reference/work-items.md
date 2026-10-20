@@ -1,6 +1,6 @@
 # Midas work items: shared reference
 
-Used by `/new-item` and `/refine-item`.
+Used by `/new-item`, `/refine-item` and `/test-cases`.
 
 ## Team defaults
 
@@ -146,6 +146,19 @@ Title example: "Display quote activity, including edits".
 | Parent | a parent link (`wit_work_item_link_write`, type `parent`), not a field |
 
 Set `System.AssignedTo` (email) only when the user asks.
+
+---
+
+## Test plans
+
+Used by `/test-cases`.
+
+| What | Convention |
+|---|---|
+| Plan | One per sprint: `Midas_Stories_<sprint>`, e.g. `Midas_Stories_122`. Area `BigChange\Finance\Midas`, iteration the sprint's path (`BigChange\Midas\122`) |
+| Suite | One per work item, under the plan's root suite: `<id> : <title>`. Requirement-based, so it lists every test case linked to the item |
+| Test case | Area `BigChange\Finance\Midas`, iteration the sprint's path, a Tested By link to the item, Priority 1 for core criteria and 2 for the rest |
+| Suite link | `https://dev.azure.com/bigchange/BigChange/_testPlans/define?planId=<plan>&suiteId=<suite>` |
 
 ---
 

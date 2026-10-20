@@ -1,13 +1,15 @@
-// The work item being drafted, as a Claude Doc. The band above the prompt acts on it.
+// The work item (or a work item's test cases) being drafted, as a Claude Doc. The band above the prompt acts on it.
 export type Draft = {
-  type: 'Bug' | 'Enabler' | 'User Story'
+  type: 'Bug' | 'Enabler' | 'User Story' | 'Test cases'
   title: string
   url: string
   // A new item, once created.
   createdId?: number
-  // An existing item being refined, and whether the update is saved.
+  // An existing item being refined (or the item the test cases are for), and whether the update is saved.
   id?: number
   updated?: boolean
+  // The test suite, once the test cases are created.
+  suiteUrl?: string
 }
 
 export type FeaturePhase = 'story' | 'spec' | 'plan' | 'build' | 'review' | 'pr' | 'done'
