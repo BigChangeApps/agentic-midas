@@ -112,10 +112,11 @@ const COMMANDS: Record<string, string> = {
   feature: 'Feature',
   'test-cases': 'Test cases',
   develop: 'Develop',
+  'quick-bugfix': 'Bugfix',
 }
-const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|feature|test-cases|develop)(?:\s+([\s\S]*))?$/
-// /develop also takes a description or a task folder, so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
-const DEVELOP_ID = /^(?:AB)?#?(\d{3,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|feature|test-cases|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
+// /develop and /quick-bugfix also take a description (and /develop a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
+const FREE_TEXT_ID = /^(?:AB)?#?(\d{3,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
 const TITLE_MAX = 80
 
 export type Command = { label: string; id?: number; brief: string }
@@ -130,8 +131,8 @@ export function parseCommand(prompt: string): Command | null {
   const id =
     name === 'new-item'
       ? undefined
-      : name === 'develop'
-        ? DEVELOP_ID.exec(brief)?.slice(1).find(Boolean)
+      : name === 'develop' || name === 'quick-bugfix'
+        ? FREE_TEXT_ID.exec(brief)?.slice(1).find(Boolean)
         : brief.match(/\d{3,}/)?.[0]
   return { label, id: id ? Number(id) : undefined, brief }
 }
