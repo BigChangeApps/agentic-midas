@@ -191,3 +191,9 @@ test('/develop names an item only from an id, a link or a task folder', async ()
   expect(parseCommand('/develop Fix the 500 error on quote save')).toMatchObject({ label: 'Develop', id: undefined })
   expect(titleFor(parseCommand('/develop Fix the 500 error on quote save')!)).toBe('Develop: Fix the 500 error on quote save')
 })
+
+test('/quick-bugfix names the bug from an id or link, and a description by its text', async () => {
+  expect(parseCommand('/agentic-midas:quick-bugfix 359792')).toMatchObject({ label: 'Bugfix', id: 359792 })
+  expect(parseCommand('/quick-bugfix https://dev.azure.com/bigchange/BigChange/_workitems/edit/359792')?.id).toBe(359792)
+  expect(titleFor(parseCommand('/quick-bugfix API returns 500 on save')!)).toBe('Bugfix: API returns 500 on save')
+})
