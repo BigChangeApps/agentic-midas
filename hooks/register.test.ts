@@ -183,3 +183,11 @@ test('the session title comes from the prompt, with the item title from az', asy
   const plain = await $.classic.UserPromptSubmit({ prompt: 'Create it.' })
   expect(plain.sessionTitle).toBeUndefined()
 })
+
+test('/develop names an item only from an id, a link or a task folder', async () => {
+  expect(parseCommand('/agentic-midas:develop AB#361453')).toMatchObject({ label: 'Develop', id: 361453 })
+  expect(parseCommand('/develop https://dev.azure.com/bigchange/BigChange/_workitems/edit/361453')?.id).toBe(361453)
+  expect(parseCommand('/develop .midas/tasks/development/2026-10-22-361453-send-quote')?.id).toBe(361453)
+  expect(parseCommand('/develop Fix the 500 error on quote save')).toMatchObject({ label: 'Develop', id: undefined })
+  expect(titleFor(parseCommand('/develop Fix the 500 error on quote save')!)).toBe('Develop: Fix the 500 error on quote save')
+})
