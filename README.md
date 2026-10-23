@@ -5,6 +5,7 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
 ## What it ships
 
 - **Azure DevOps MCP server** (`@azure-devops/mcp@2.10.0`, org `bigchange`, signed in through the az CLI).
+- **Playwright MCP server** (`@playwright/mcp@0.0.83`), for `/develop`'s mockup previews and E2E tests.
 - **Permission guard**: a `tool.check` hook. Read-only Azure DevOps tools run without a prompt. Every change (`*_write`, branch creation, backlog reorder, downloads that save files) is asked first, even when a broad allow rule would let it through. It covers this plugin's server and a user-scope server named `azure-devops`.
 - **`/agentic-midas:new-item [bug|enabler|story] <brief>`**: checks for duplicates, then drafts the work item as a **Claude Doc** in the team format, with a heading per field, a Details list, and Still needed / Possible duplicates sections when they apply. Edit the text directly, and select words to comment. It creates the item after you say yes. Without Docs, the draft goes in chat instead.
 - **`/agentic-midas:refine-item <id or link> [what to change]`**: loads an existing Bug, Enabler or User Story and answers developers' questions about it from the item, its comments, its links and the code. When it needs changes, drafts the refined version as a Claude Doc headed by a **What changes** list. **Update** saves only the fields that differ, keeps each field's HTML or markdown format, and refuses to overwrite if someone edited the item in the meantime.
@@ -37,7 +38,28 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
 
   Only the band's buttons pass the gates; Claude can't pass them itself. While a feature is in progress, the mod also adds a short reminder of it (item, phase, gates) to every system prompt, so Claude picks the workflow back up after context compaction.
 
-- **Session titles**: running a command names the session after its item, such as `Test cases #361294: Display quote activity` or `Feature #361294: …`, so the session list shows what each one works on. The item's title comes from the az CLI; if that takes more than 5 s, the title has the id only.
+- **`/agentic-midas:develop <id, link or description>`**: a file-based development workflow adapted from [maister](https://github.com/SkillPanel/maister), for bugs, enhancements and features of any work item type. Up to 14 phases, each ending with a question to you:
+  1. codebase analysis and up to 5 clarifying questions;
+  2. gap analysis, which detects what the task involves (a reproducible defect, existing code, new entities, data, UI) and settles open decisions with you;
+  3. TDD red for a bug: a failing test first;
+  4. UI mockups, when the task is UI-heavy (HTML preview, or ASCII without Node);
+  5. requirements and the spec;
+  6. a spec audit by `spec-file-auditor`;
+  7. the implementation plan;
+  8. implementation in parallel waves of task groups, with a work log;
+  9. TDD green;
+  10. which reviews to run;
+  11. verification: the full test suite (`dotnet test` on the solution), completeness, code review, pragmatism, production readiness and a reality check, then a fix loop where you pick the fixes;
+  12. E2E tests through Playwright (UI-heavy or `--e2e`);
+  13. user docs (`--user-docs`);
+  14. finalize: commit, push and a draft PR linked to the item, each only after you say yes.
+
+  Every artifact stays in a folder per task, `.midas/tasks/development/YYYY-MM-DD-<id>-<slug>/`: `analysis/`, `implementation/` (spec, plan, work log), `verification/`, `orchestrator-state.yml`, plus HTML companions and a live dashboard that opens in the browser. Re-run with the folder (`--from=PHASE` to jump) to resume. It reads standards from `.midas/docs/INDEX.md`, or else from the repo's `CLAUDE.md` and `.claude/rules/`.
+
+  How it differs from `/feature`: it keeps its docs as files rather than Claude Docs, and gates through questions rather than band buttons, so it takes any item type and bugs. While a `/feature` is in progress, its guards apply to the whole session, so pause the feature first. Repos that use it should ignore `.midas/tasks/`.
+- **Subagent guard**, always on: subagents are refused `git stash`, `reset --hard`, `checkout -- …`, `restore`, `clean -f`, `push --force` and `branch -D`, and `rm -r` asks you. While a `.midas/tasks` workflow is open, a reminder of its state file goes into every system prompt, so it resumes at the right phase after compaction.
+
+- **Session titles**: running a command names the session after its item, such as `Test cases #361294: Display quote activity`, `Feature #361294: …` or `Develop #361294: …`, so the session list shows what each one works on. The item's title comes from the az CLI; if that takes more than 5 s, the title has the id only.
 
 Docs need the Claude Docs connector on your claude.ai account. Drafts and specs stay in your claude.ai gallery as private docs.
 
@@ -94,7 +116,7 @@ Everyone on the team can change this plugin: fix a template, sharpen a skill, or
 .claude-plugin/
   plugin.json         name, version, description
   marketplace.json    makes this repo installable as a marketplace
-.mcp.json             Azure DevOps MCP server (pinned version)
+.mcp.json             Azure DevOps and Playwright MCP servers (pinned versions)
 reference/
   work-items.md       team defaults, doc layout, templates, ADO field map, branches/commits/PRs; shared by the skills
 skills/
@@ -102,16 +124,27 @@ skills/
   refine-item/SKILL.md
   feature/SKILL.md
   test-cases/SKILL.md
+  develop/SKILL.md    /agentic-midas:develop, the 14-phase orchestrator (from maister)
+  mockup-studio/      UI mockups for /develop, also runnable on its own (from maister)
+  orchestrator-framework/        shared rules for orchestrators: gates, state, resume, dashboard (from maister)
+  codebase-analyzer/             Phase 1 (from maister)
+  implementation-plan-executor/  Phase 8, parallel waves (from maister)
+  implementation-verifier/       Phase 11, the review agents (from maister)
 agents/
   spec-auditor.md     fresh-context spec audit, before Approve spec
   feature-reviewer.md fresh-context code review, before Commit & PR
+  *.md                the rest serve /develop (from maister); dev-code-reviewer and spec-file-auditor are renamed there
 hooks/
   hooks.json          points Claude Code at register.tsx
-  register.tsx        entry: ADO permission guard, draft_work_item tool, draft band, session titles
+  register.tsx        entry: ADO permission guard, draft_work_item tool, draft band, session titles, the one prompt.compose hook
   feature.tsx         feature_status tool, feature band and pane, feature guards
+  develop.tsx         subagent guard, and the reminder of a .midas/tasks workflow in progress
   *.test.ts           tests
 types/index.d.ts      the mod's state and tool-input types
+THIRD_PARTY_NOTICES.md  what came from maister (MIT), from which commit, and what changed
 ```
+
+Files marked *from maister* follow upstream's structure on purpose, so later upstream fixes can be merged. Keep `.midas/` paths and `agentic-midas:` names when you sync, and list new ported files in `THIRD_PARTY_NOTICES.md`.
 
 ### Work on it locally
 
