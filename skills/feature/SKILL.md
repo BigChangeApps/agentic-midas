@@ -107,8 +107,14 @@ Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workit
    - Allow at most 3 rounds; after that, ask whether to go on with the known issues.
    - Never go on with an unresolved high finding unless the user explicitly says so.
    - Set criteria to `verified` with their `evidence`.
-4. Publish the change summary as a private Artifact page, loading the artifact-design skill first. It holds:
+4. Publish the change summary as a private Artifact page, loading the artifact-design and artifact-diagramming skills first. It holds:
    - the summary block: TL;DR of what changed, key decisions, open questions and known risks;
+   - **How it works**, always, right after the TL;DR: two to four diagrams of the feature as built, so a reviewer sees how it works before reading the diff. Pick the flows that carry it:
+     - the main user action end to end: which components talk, in order, and where data is checked, stored or refused;
+     - who reads the result (editor, customer page, other services) and what each may see;
+     - the lifecycle of data the feature adds: its states and what moves it between them.
+
+     Make each one a figure with a numbered title, an inline SVG (`role="img"`, an `aria-label` that says the flow in one sentence) and a caption of two or three sentences on what the drawing can't show. Use the real component names, mark checks and failure paths, and use the page's colour tokens so both themes work. Render it once and fix overlapping or overflowing text. When the code changes, update the diagrams too;
    - links to AB#<id> and the spec;
    - per repo: branch and changed files (uncommitted), each with one line on why;
    - a map from each criterion to its evidence (code and tests);
