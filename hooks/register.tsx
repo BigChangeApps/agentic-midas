@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Draft } from '../types'
-import { FEATURE_TOOL_SPEC, registerFeature } from './feature'
+import { registerDevelop, taskSection } from './develop'
+import { FEATURE_TOOL_SPEC, featureSection, registerFeature } from './feature'
 
 // This plugin's server, and a user-scope one under the same name.
 const ADO = /^mcp__(plugin_agentic-midas_)?azure-devops__/
@@ -110,8 +111,11 @@ const COMMANDS: Record<string, string> = {
   'refine-item': 'Refine',
   feature: 'Feature',
   'test-cases': 'Test cases',
+  develop: 'Develop',
 }
-const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|feature|test-cases)(?:\s+([\s\S]*))?$/
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|feature|test-cases|develop)(?:\s+([\s\S]*))?$/
+// /develop also takes a description or a task folder, so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
+const DEVELOP_ID = /^(?:AB)?#?(\d{3,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
 const TITLE_MAX = 80
 
 export type Command = { label: string; id?: number; brief: string }
@@ -123,7 +127,12 @@ export function parseCommand(prompt: string): Command | null {
   if (!label) return null
 
   const brief = args.trim()
-  const id = name === 'new-item' ? undefined : brief.match(/\d{3,}/)?.[0]
+  const id =
+    name === 'new-item'
+      ? undefined
+      : name === 'develop'
+        ? DEVELOP_ID.exec(brief)?.slice(1).find(Boolean)
+        : brief.match(/\d{3,}/)?.[0]
   return { label, id: id ? Number(id) : undefined, brief }
 }
 
@@ -147,6 +156,15 @@ function say($: EngineInterface, text: string) {
 
 export const register: Register = on => {
   registerFeature(on)
+  registerDevelop(on)
+
+  // Keeps a running workflow in view after compaction drops the skill's instructions. The engine takes one unmatched hook.
+  on('prompt.compose', async ($, e, next) => {
+    const composed = await next(e)
+    const added = [...(await featureSection($)), ...(await taskSection($))]
+
+    return added.length ? { sections: [...composed.sections, ...added] } : composed
+  })
 
   on('tool.check', { tool: ADO }, async ($, e, next) => {
     const verdict = await next(e)

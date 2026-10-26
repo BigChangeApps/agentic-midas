@@ -59,6 +59,8 @@ declare module 'claude-code' {
       git: RepoGit[]
       // Repo name (or "outside") -> files Claude edited this session.
       touched: Record<string, string[]>
+      // The orchestrator-state.yml of the /develop (or other .midas/tasks) workflow running in this session.
+      task: string | null
     }
   }
 }

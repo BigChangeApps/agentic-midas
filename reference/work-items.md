@@ -1,6 +1,6 @@
 # Midas work items: shared reference
 
-Used by `/new-item`, `/refine-item` and `/test-cases`.
+Used by `/new-item`, `/refine-item`, `/test-cases`, `/feature` and `/develop`.
 
 ## Team defaults
 
@@ -164,7 +164,7 @@ Used by `/test-cases`.
 
 ## Repos, branches, commits and pull requests
 
-Used by `/feature`.
+Used by `/feature` and `/develop`.
 
 **Base branch:** the repo's `origin/HEAD`, normally `main`; some repos use `master`. **`BigChange` always uses `WebRelease2`.** Feature work never lands straight on a base branch.
 

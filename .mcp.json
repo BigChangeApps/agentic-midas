@@ -3,6 +3,10 @@
     "azure-devops": {
       "command": "npx",
       "args": ["-y", "@azure-devops/mcp@2.10.0", "bigchange", "--authentication", "azcli"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.83"]
     }
   }
 }
