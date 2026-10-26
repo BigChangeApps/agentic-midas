@@ -7,7 +7,7 @@ export const FEATURE_TOOL = 'mcp__agentic-midas__feature_status'
 const ITEM_URL = 'https://dev.azure.com/bigchange/BigChange/_workitems/edit/'
 const PANE = 'midas-feature'
 // A RegExp, not an array: an array of built-in tools makes the type-checker build every pairing and run out of memory.
-const EDIT_TOOLS = /^(Edit|Write|MultiEdit|NotebookEdit)$/
+export const EDIT_TOOLS = /^(Edit|Write|MultiEdit|NotebookEdit)$/
 // Feature work never lands straight on these, whatever the plan names as base.
 const PROTECTED = ['main', 'master', 'WebRelease2']
 
@@ -98,7 +98,7 @@ const SCHEMA = {
   required: ['id'],
 }
 
-const isText = (v: unknown): v is string => typeof v === 'string'
+export const isText = (v: unknown): v is string => typeof v === 'string'
 const isLink = (v: unknown) => isText(v) && (v.startsWith('https://claude.ai/') || v.startsWith('file:///'))
 const isAbsolute = (v: unknown) => isText(v) && v.startsWith('/')
 const trim = (p: string) => p.replace(/\/+$/, '')
@@ -227,6 +227,14 @@ export function reminderText(f: Feature): string {
   ].join('\n')
 }
 
+// The system prompt section that keeps a feature in view after compaction; none when no feature is in progress.
+export async function featureSection($: EngineInterface) {
+  const f = await read($, feature)
+  if (!f || f.phase === 'done') return []
+
+  return [{ id: 'agentic-midas:feature', text: reminderText(f), scope: 'session' as const }]
+}
+
 export const trackerText = (phase: FeaturePhase) =>
   PHASES.slice(0, -1)
     .map(([k, label], i) => (i < order(phase) ? `${label} ✓` : k === phase ? `${label} ●` : label))
@@ -338,7 +346,7 @@ async function close($: EngineInterface, isDone: boolean) {
   $.ui.status(undefined)
 }
 
-const pathOf = (input: unknown) => {
+export const pathOf = (input: unknown) => {
   const i = (input ?? {}) as { file_path?: unknown; notebook_path?: unknown }
   return isText(i.file_path) ? i.file_path : isText(i.notebook_path) ? i.notebook_path : ''
 }
@@ -405,15 +413,6 @@ export function registerFeature(on: On) {
     }
 
     return shipBlocked(f) && GATED.test(command) ? { decision: 'deny', reason: shipReason(f) } : next(e)
-  })
-
-  // Keeps the workflow in view after compaction drops the skill's instructions.
-  on('prompt.compose', async ($, e, next) => {
-    const composed = await next(e)
-    const f = await read($, feature)
-    if (!f || f.phase === 'done') return composed
-
-    return { sections: [...composed.sections, { id: 'agentic-midas:feature', text: reminderText(f), scope: 'session' }] }
   })
 
   on('tool.check', { tool: /azure-devops__repo_pull_request_write$/ }, async ($, e, next) => {
