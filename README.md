@@ -17,7 +17,7 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
   - adds a plan to the spec: repos, contracts, a data lifecycle table that catches orphaned operations, order, tests and decisions;
   - builds in each repo's own style and asks you every decision the acceptance criteria don't settle;
   - has the `feature-reviewer` agent review the change in a fresh context, for correctness, whether it really works end to end, over-engineering and scope. You pick which findings to fix;
-  - leaves the changes uncommitted for your review, with a change summary page as the map. The spec, the plan and the summary each open with a TL;DR, key decisions and open questions;
+  - leaves the changes uncommitted for your review, with a change summary page as the map. The summary always has a "How it works" section of diagrams. The spec, the plan and the summary each open with a TL;DR, key decisions and open questions;
   - after **Commit & PR**, commits, pushes and opens draft PRs.
 
   Running it again on the same id resumes where it stopped.
