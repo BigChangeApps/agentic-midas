@@ -37,7 +37,7 @@ Keep the set small and general: one test case for each main thing the feature do
   - the main path of each group of acceptance criteria;
   - the negative or edge cases that matter, such as no change, closed or read-only states, another user, and permissions;
   - one regression check for each area the change touched, if it carries risk.
-- When the app can't produce the data a test needs, the first step sets it up and says exactly how (for example, rows to insert and their values).
+- Every step is done and checked through the app or BigWeb, never with SQL queries or database rows. When a test needs data the feature doesn't create, the first step says exactly how to make it in the app (for example, create it in BigWeb and wait for the sync). Leave out a criterion only the database can show, and say in chat that backend tests cover it.
 - Leave out criteria that can't be tested yet. List them under **Not covered yet**, each with the work item it waits for, rather than as Blocked test cases.
 - Priority 1 for core criteria, 2 for the rest.
 - Step text is plain text: no angle brackets (ADO strips anything that looks like an HTML tag) and no `|` (it separates the action from the expected result).
