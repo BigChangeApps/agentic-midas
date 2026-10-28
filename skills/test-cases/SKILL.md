@@ -14,7 +14,7 @@ First read `../../reference/work-items.md`, relative to this skill's base direct
 
 Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`. With no id, ask for one. Any other text is what to focus on.
 
-Call `wit_work_item` with `action: "get"`, `project: "BigChange"` and `expand: "Relations"`. From it take the description, the acceptance criteria and the linked pull requests and commits.
+Call `wit_work_item` with `action: "get"`, `project: "BigChange"` and `expand: "Relations"`. From it take the description, the acceptance criteria and the linked pull requests and commits. Then name the session as the reference's **Session title** says.
 
 Find out what was really built, because the acceptance criteria often differ from it:
 - Read the merged pull requests' changes in this workspace. Look for the UI flows, the states the feature handles, and anything the code does on purpose that the criteria don't mention.
