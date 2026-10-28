@@ -14,7 +14,8 @@ export type Draft = {
 
 export type FeaturePhase = 'story' | 'spec' | 'plan' | 'build' | 'review' | 'pr' | 'done'
 
-export type FeatureRepo = { name: string; path: string; base: string; tests?: 'passed' | 'failed' }
+// `session`: the sub-session making the repo's code changes; `path` is the folder it works in.
+export type FeatureRepo = { name: string; path: string; base: string; tests?: 'passed' | 'failed'; session?: string }
 
 export type FeatureCriterion = { text: string; status: 'todo' | 'done' | 'verified'; evidence?: string }
 

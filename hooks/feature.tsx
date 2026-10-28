@@ -56,6 +56,7 @@ const SCHEMA = {
           path: { type: 'string', description: 'Absolute path' },
           base: { type: 'string', description: 'Base branch' },
           tests: { enum: ['passed', 'failed'], description: 'Last test run' },
+          session: { type: 'string', description: "The id of the sub-session making this repo's code changes; leave out to make them here" },
         },
         required: ['name', 'path', 'base'],
       },
@@ -117,7 +118,10 @@ export function parseUpdate(input: unknown): FeatureUpdate | null {
   if (isText(i.phase) && order(i.phase as FeaturePhase) >= 0) u.phase = i.phase as FeaturePhase
   if (isText(i.specUrl)) u.specUrl = i.specUrl
   if (isText(i.summaryUrl)) u.summaryUrl = i.summaryUrl
-  const repos = list<FeatureRepo>(i.repos, r => isText(r.name) && isAbsolute(r.path) && isText(r.base))
+  const repos = list<FeatureRepo>(
+    i.repos,
+    r => isText(r.name) && isAbsolute(r.path) && isText(r.base) && (r.session === undefined || isText(r.session)),
+  )
   if (repos) u.repos = repos.map(r => ({ ...r, path: trim(r.path) }))
   const ac = list<Feature['ac'][number]>(i.ac, c => isText(c.text) && ['todo', 'done', 'verified'].includes(c.status))
   if (ac) u.ac = ac
@@ -168,6 +172,9 @@ export function editBlock(f: Feature | null, path: string): { reason?: string; r
     return {
       reason: `${path} is outside the planned repos of AB#${f.id}. Ask the user; if they agree, add the repo with feature_status, then edit.`,
     }
+  }
+  if (repo.session) {
+    return { reason: `${repo.name}'s code changes run in its sub-session ${repo.session}: send the change there with SendMessage.` }
   }
 
   return { repo }
@@ -220,9 +227,11 @@ export function destructiveOp(command: string, root: string): { op: string; isAs
 
 export function reminderText(f: Feature): string {
   const passed = (isOn?: boolean) => (isOn ? 'passed' : 'not yet')
+  const delegated = f.repos.filter(r => r.session).map(r => `${r.name} → ${r.session}`)
   return [
     `A /feature workflow is in progress: AB#${f.id} "${f.title}", phase ${labelOf(f.phase)}.`,
     `Gates: Approve spec ${passed(f.approvals.spec)}, Approve plan ${passed(f.approvals.plan)}, Commit & PR ${passed(f.approvals.push)}. Only the user's band buttons pass them; changes stay uncommitted until Commit & PR.`,
+    ...(delegated.length ? [`Code changes run in sub-sessions (${delegated.join(', ')}): send work to them with SendMessage.`] : []),
     `If the /agentic-midas:feature skill's instructions are no longer in your context (after compaction, for example), invoke that skill again with ${f.id} before going on, and call feature_status with the id to reload the saved state.`,
   ].join('\n')
 }

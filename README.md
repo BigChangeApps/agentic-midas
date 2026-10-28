@@ -16,7 +16,7 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
   - checks the story and its designs, and asks instead of guessing;
   - writes a feature spec (a Claude Doc you edit and comment on). The `spec-auditor` agent audits it in a fresh context, and its findings arrive as doc comments;
   - adds a plan to the spec: repos, contracts, a data lifecycle table that catches orphaned operations, order, tests and decisions;
-  - builds in each repo's own style and asks you every decision the acceptance criteria don't settle;
+  - builds in one sub-session per repo, opened in a worktree of the repo or in the repo folder (you pick). Each sub-session's diff pane shows that repo's changes, for review and inline comments. Each builds in its repo's own style and asks you every decision the acceptance criteria don't settle;
   - has the `feature-reviewer` agent review the change in a fresh context, for correctness, whether it really works end to end, over-engineering and scope. You pick which findings to fix;
   - leaves the changes uncommitted for your review, with a change summary page as the map. The summary always has a "How it works" section of diagrams. The spec, the plan and the summary each open with a TL;DR, key decisions and open questions;
   - after **Commit & PR**, commits, pushes and opens draft PRs.
@@ -33,6 +33,7 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
 - **Feature guards**, active while a feature is in progress:
   - no code edits under the workspace before Approve spec and Approve plan;
   - no edits in repos outside the plan, or in a repo on its base branch;
+  - no edits in the orchestrating session to a repo that has a sub-session: changes go to that sub-session;
   - no `git commit`, `git push`, `az repos pr create` or ADO PR tool before Commit & PR, so you review the uncommitted changes first;
   - no `git stash`, `reset --hard`, `checkout -- …` / `.`, `restore`, `clean -f`, `push --force` or `branch -D`, for Claude and its subagents alike, so unreviewed work can't be thrown away. `rm -r` inside the workspace asks you first.
 

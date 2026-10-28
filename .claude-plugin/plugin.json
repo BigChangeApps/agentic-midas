@@ -1,6 +1,6 @@
 {
   "name": "agentic-midas",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Midas team workflows on Azure DevOps: create and refine work items in the team format, develop user stories end to end with approval gates (/feature) or through a 14-phase file-based development workflow adapted from maister (/develop), and create test cases in the sprint's test plan. Read-only ADO tools run freely; every change is asked first.",
   "author": {
     "name": "Patryk Kowalczyk"
