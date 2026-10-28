@@ -58,9 +58,10 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
   Every artifact stays in a folder per task, `.midas/tasks/development/YYYY-MM-DD-<id>-<slug>/`: `analysis/`, `implementation/` (spec, plan, work log), `verification/`, `orchestrator-state.yml`, plus HTML companions and a live dashboard that opens in the browser. Re-run with the folder (`--from=PHASE` to jump) to resume. It reads standards from `.midas/docs/INDEX.md`, or else from the repo's `CLAUDE.md` and `.claude/rules/`.
 
   How it differs from `/feature`: it keeps its docs as files rather than Claude Docs, and gates through questions rather than band buttons, so it takes any item type and bugs. While a `/feature` is in progress, its guards apply to the whole session, so pause the feature first. Repos that use it should ignore `.midas/tasks/`.
+- **`/agentic-midas:quick-bugfix <bug id, link or description>`**: a light TDD bug fix, adapted from maister's `quick-bugfix`, for a small reproducible bug. It loads the bug from ADO, finds the root cause with file and line evidence and presents a fix plan in plan mode (root cause, fix, test strategy, branch, standards). After your yes it creates `bugfix/<id>-<slug>` from the base branch, writes a failing test (TDD red), fixes and re-runs it (green), checks the plan's standards checklist and proposes the commit; commit, push and draft PR each wait for your yes. No task folder, state or subagents. Where the code has no test harness (legacy WebForms markup, for example) it asks whether to test at the nearest seam, add a harness, or verify written manual repro steps. When the bug turns out bigger (2+ of: 5+ files, a schema change, architectural trade-offs, security-sensitive code, an unclear root cause) it offers `/agentic-midas:develop`.
 - **Subagent guard**, always on: subagents are refused `git stash`, `reset --hard`, `checkout -- …`, `restore`, `clean -f`, `push --force` and `branch -D`, and `rm -r` asks you. While a `.midas/tasks` workflow is open, a reminder of its state file goes into every system prompt, so it resumes at the right phase after compaction.
 
-- **Session titles**: running a command names the session after its item, such as `Test cases #361294: Display quote activity`, `Feature #361294: …` or `Develop #361294: …`, so the session list shows what each one works on. The item's title comes from the az CLI; if that takes more than 5 s, the title has the id only.
+- **Session titles**: running a command names the session after its item, such as `Test cases #361294: Display quote activity`, `Feature #361294: …`, `Develop #361294: …` or `Bugfix #359792: …`, so the session list shows what each one works on. The item's title comes from the az CLI; if that takes more than 5 s, the title has the id only.
 
 Docs need the Claude Docs connector on your claude.ai account. Drafts and specs stay in your claude.ai gallery as private docs.
 
@@ -126,6 +127,7 @@ skills/
   feature/SKILL.md
   test-cases/SKILL.md
   develop/SKILL.md    /agentic-midas:develop, the 14-phase orchestrator (from maister)
+  quick-bugfix/SKILL.md  /agentic-midas:quick-bugfix, a TDD bug fix in plan mode (from maister)
   mockup-studio/      UI mockups for /develop, also runnable on its own (from maister)
   orchestrator-framework/        shared rules for orchestrators: gates, state, resume, dashboard (from maister)
   codebase-analyzer/             Phase 1 (from maister)
