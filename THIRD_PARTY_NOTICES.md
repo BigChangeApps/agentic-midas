@@ -50,3 +50,4 @@ skills/orchestrator-framework/assets/dashboard.html
 skills/orchestrator-framework/references/html-report-style.md
 skills/orchestrator-framework/references/orchestrator-patterns.md
 skills/orchestrator-framework/SKILL.md`
+- `skills/quick-bugfix/SKILL.md` (Azure DevOps Bug input, Midas branch and commit conventions, the `CLAUDE.md` standards fallback, and a choice for code with no test harness)
