@@ -39,7 +39,7 @@ Send `feature_status` the `id` plus whatever changed. Lists replace whole. Keep 
 
 ## 0. Start or resume
 
-Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`. Call `feature_status` with just the `id`.
+Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`. Call `feature_status` with just the `id`. Once you have the item's title (saved or loaded), name the session as the reference's **Session title** says.
 - **Saved state comes back:** say in one line where it stands, and carry on from its phase. Read the spec doc since your last rev first. Repos with a `session` have their sub-session there: check it with `get_session` before sending it work.
 - **Nothing saved:** call it with `id`, `title` and `root`. `root` is the absolute path of the folder holding the repos, normally the session's working directory.
 

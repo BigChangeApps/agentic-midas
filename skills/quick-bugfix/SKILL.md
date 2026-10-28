@@ -30,7 +30,7 @@ For a bug that grows beyond a quick fix, suggest the full workflow, `/agentic-mi
 
 ### Step 1: Get the bug
 
-- **A work item** — digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`: load it with the Azure DevOps MCP (`wit_get_work_item`, expand Relations) and its comments. The bug is its title, description, repro steps and expectation of fix. Look at attached screenshots when they help. Other item types: say this skill is for Bugs and suggest `/agentic-midas:develop`.
+- **A work item** — digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`: load it with the Azure DevOps MCP (`wit_get_work_item`, expand Relations) and its comments. The bug is its title, description, repro steps and expectation of fix. Look at attached screenshots when they help. Other item types: say this skill is for Bugs and suggest `/agentic-midas:develop`. For a Bug, name the session as the reference's **Session title** says.
 - **A description** as the argument: use it.
 - **No argument:** take the bug from the recent conversation (error messages, repro steps, symptoms). Only when there is none, ask with AskUserQuestion: "Describe the bug — what's the expected behaviour vs the actual behaviour?"
 

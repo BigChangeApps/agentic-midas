@@ -14,7 +14,7 @@ First read `../../reference/work-items.md`, relative to this skill's base direct
 
 Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>` (board links). With no id, ask for one. Any other text is what the user wants changed.
 
-Call `wit_work_item` with `action: "get"`, `project: "BigChange"` and `expand: "Relations"`. Keep its `rev` and `multilineFieldsFormat`. Also list its comments (`list_comments`, `top: 20`) and get the parent's title.
+Call `wit_work_item` with `action: "get"`, `project: "BigChange"` and `expand: "Relations"`. Keep its `rev` and `multilineFieldsFormat`. Also list its comments (`list_comments`, `top: 20`) and get the parent's title. Then name the session as the reference's **Session title** says.
 
 - The type must be Bug, Enabler or User Story. For anything else, say this command handles those three, and stop.
 - If it is Closed or Removed, say so and ask whether to go on.

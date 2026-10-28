@@ -24,7 +24,7 @@ Run `search_workitem` with 3 to 6 key terms from the brief. Use project `["BigCh
 
 ## 3. Draft the doc
 
-Draft every field of the type's template as the reference's Draft doc section describes. For a Bug, propose a Priority in Details and say why in one line in chat. Name the doc `<Type>: <title>`.
+Draft every field of the type's template as the reference's Draft doc section describes. For a Bug, propose a Priority in Details and say why in one line in chat. Name the doc `<Type>: <title>`, and the session `New item: <title>` as the reference's **Session title** says.
 
 Call `draft_work_item` with `type`, `title` and the doc's `url`. The band then offers **Open doc**, **Action comments**, **Create** and **Cancel**. In chat, say in two lines that the draft is in the doc, what is still needed, and that the user can edit the text, select words to comment, then use the band.
 
@@ -44,7 +44,8 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 4. Call `wit_work_item_write` with `action: "create"`, `project: "BigChange"`, the exact `workItemType` (`Bug`, `Enabler`, `User Story`) and those fields, with rich text as the reference's Creating rule says.
 5. With a parent: `wit_work_item_link_write`, `action: "link"`, `updates: [{ id: <new id>, linkToId: <parent id>, type: "parent" }]`.
 6. Add a first line to the doc: `Created as [<Type> #<id>](<link>)`. Then call `draft_work_item` again with the same values plus `createdId`.
-7. In chat: `Created <Type> #<id>: <title>`, then the link, then `Parent: #<id>` if one was linked.
+7. Rename the session `New item #<id>: <title>`.
+8. In chat: `Created <Type> #<id>: <title>`, then the link, then `Parent: #<id>` if one was linked.
 
 If the create fails, show the error as it came back, say **nothing was created**, and stop. The band stays, so the user can fix the doc and press Create again.
 
