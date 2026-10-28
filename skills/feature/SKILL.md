@@ -1,6 +1,6 @@
 ---
 name: feature
-description: Develop a Midas user story end to end. Checks the story and its designs, asks every open question instead of guessing, writes a feature spec and a plan for the user to approve, implements it in the workspace's repos following each repo's practices, raises every decision the acceptance criteria don't settle, verifies and reviews it in fresh context, publishes a change summary page, then pushes and opens pull requests after the user's go-ahead. Use when the user gives a user story id or link to build, or invokes /feature. Re-running on an id resumes it.
+description: Develop a Midas user story end to end. Checks the story and its designs, asks every open question instead of guessing, writes a feature spec and a plan for the user to approve, implements it in one sub-session per repo (in a worktree or the repo folder, so each repo's diff can be reviewed) following each repo's practices, raises every decision the acceptance criteria don't settle, verifies and reviews it in fresh context, publishes a change summary page, then pushes and opens pull requests after the user's go-ahead. Use when the user gives a user story id or link to build, or invokes /feature. Re-running on an id resumes it.
 argument-hint: "<user story id or link>"
 ---
 
@@ -19,6 +19,7 @@ There are three gates, and **only the user's band buttons pass them**: **Approve
 - Edits under the workspace are refused before both approvals, except in `.midas/`.
 - Edits in repos outside the plan are refused.
 - Edits in a repo that sits on its base branch are refused.
+- Edits in a repo that has a sub-session are refused here: send them to that session.
 - `git commit`, `git push`, `az repos pr create` and ADO PR tools are refused before Commit & PR. The user reviews the uncommitted changes first.
 - Commands that could throw away uncommitted work are refused for you and your subagents: `git stash`, `git reset --hard`, `git checkout -- …` or `.`, `git restore`, `git clean -f`, `git push --force`, `git branch -D`. `rm -r` inside the workspace is put to the user.
 
@@ -39,7 +40,7 @@ Send `feature_status` the `id` plus whatever changed. Lists replace whole. Keep 
 ## 0. Start or resume
 
 Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`. Call `feature_status` with just the `id`.
-- **Saved state comes back:** say in one line where it stands, and carry on from its phase. Read the spec doc since your last rev first.
+- **Saved state comes back:** say in one line where it stands, and carry on from its phase. Read the spec doc since your last rev first. Repos with a `session` have their sub-session there: check it with `get_session` before sending it work.
 - **Nothing saved:** call it with `id`, `title` and `root`. `root` is the absolute path of the folder holding the repos, normally the session's working directory.
 
 ## 1. Story
@@ -88,22 +89,35 @@ Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workit
 
 ## 4. Build
 
-1. Call `feature_status` with `phase: "build"`. Create the branch in every planned repo, as the reference says.
-2. Implement in the plan's order, following each repo's own practices: its CLAUDE.md, the patterns of the feature you copied, its test style. Add tests for every criterion. Make every cell the data lifecycle table marks as added reachable by a user. Leave no TODOs, commented-out code or debug logging.
-3. **Decisions:** any choice the spec, criteria and plan don't settle goes to the user. That includes behaviour, wording, defaults, validation, error handling, what users see, and data kept.
-   - Record it first as a waiting decision, so the band shows it.
-   - Ask, batching when the work can carry on meanwhile, then record the answer.
-   - A purely internal choice that follows an existing pattern you may make yourself: record it with `by: "claude"` and the `why`, so reviewers see it.
-4. Need a repo outside the plan? Ask the user first, then add it to `repos`.
-5. As criteria are met, set their `status` to `done`. Run each repo's build and tests, and record `tests: passed` or `failed` per repo.
-6. **Don't commit.** The changes stay uncommitted, so the user can review them in their own editor's diff. Commits come after Commit & PR.
+The code changes run in **sub-sessions**, one per planned repo, each opened in that repo's own folder. Each folder is a git checkout, so the user sees the repo's changes in that session's diff pane and can review and comment there. This session orchestrates: it doesn't edit the repos itself, and the mod refuses its edits in a repo that has a sub-session.
+
+1. Call `feature_status` with `phase: "build"`.
+2. Ask with AskUserQuestion where the sub-sessions make the changes:
+   - **A worktree per repo (Recommended)**: each sub-session gets its own git worktree of the repo, so the repo's folder stays as it is.
+   - **In the repo folders**: each sub-session works in the planned folder itself, on the feature branch.
+3. **In the repo folders** only: create the branch in every planned repo now, as the reference says. With worktrees, each sub-session creates it in its own worktree.
+4. Start one sub-session per repo with `mcp__ccd_session__start_session` (load it with ToolSearch if needed): `initiation: "user_asked"` (the user's answer above is the go-ahead), `context: "fresh"`, `cwd` the repo's planned `path`, `use_worktree` per the user's choice, `title` `AB#<id> <repo>: <feature title>`, `wake_when_done: true`. With a worktree, also pass `source_branch` the repo's base when that local branch exists. The app may ask the user to allow a folder.
+   - Start repos side by side, except one that needs another repo's output first (a generated client or a published contract): start it when that repo's session reports done.
+   - The `prompt` is the brief below, and `background` the feature in a few lines: the story, the spec link, the other repos and what each does.
+5. Record each repo with `feature_status`: `session` the session id from the result, and with a worktree `path` the worktree folder (`get_session` on that id, or `git -C <repo> worktree list`). The band, the reviewer and Commit & PR read that folder. Link each session for the user as `[AB#<id> <repo>](#<session id>)`.
+6. When a sub-session reports, read its full report (`list_events`) and check it against `git -C <path> status` and the diff. Record what it reports: criteria `done` with evidence, `tests: passed` or `failed`, and decisions with `choice`, `by` and `why`. Changes go to the sub-session that owns the repo, with SendMessage to its session id; never edit its files here. If its session is gone, or the user wants a change made here, record the repo without `session` first.
+7. Need a repo outside the plan? Ask the user first, then add it to `repos` and start its sub-session.
+
+**The brief** for each sub-session holds:
+- AB#<id>, the title and the spec link; this repo's part of the plan, the contracts it provides or uses, its criteria and tests, and the decisions already made;
+- with a worktree: first run `git fetch origin --prune` and `git switch --no-track -c <branch> origin/<base>` in it;
+- follow the repo's own practices: its CLAUDE.md, the patterns of the feature the plan copies, its test style. Add tests for every criterion it owns. Make every cell the data lifecycle table marks as added reachable by a user. Leave no TODOs, commented-out code or debug logging. Touch no other repo;
+- any choice the spec, criteria and plan don't settle goes to the user, with AskUserQuestion in that session. That includes behaviour, wording, defaults, validation, error handling, what users see, and data kept. A purely internal choice that follows an existing pattern it may make itself, with the reason;
+- run the repo's build and tests;
+- **don't commit, push or open a PR**, and don't run `git stash`, `reset --hard`, `checkout -- …`, `restore`, `clean -f` or `branch -D`. The changes stay uncommitted for the user's review; Commit & PR happens in the orchestrating session;
+- end with a report: files changed with one line on why each, criteria met with their evidence, decisions made (choice, by whom, why), and the build and test results.
 
 ## 5. Review
 
 1. Call `feature_status` with `phase: "review"`.
 2. Spawn the `agentic-midas:feature-reviewer` agent. It works in a fresh context and didn't write the code. Give it the id, the spec text (behaviour, criteria, edge cases, out of scope), the data lifecycle tables, the decisions, and each repo's path, base and branch. It reviews correctness, whether the feature really works end to end, over-engineering, and scope.
 3. **The user picks the fixes.** Show the criteria matrix and the numbered findings grouped by severity. Then ask with AskUserQuestion: fix all fixable findings (Recommended), let me choose (they name the numbers), or skip.
-   - Fix what they pick. Run the builds and tests again, then ask whether to run the review again.
+   - Send each picked fix to the sub-session that owns its repo, and wait for their reports. They run their builds and tests again; then ask whether to run the review again.
    - Allow at most 3 rounds; after that, ask whether to go on with the known issues.
    - Never go on with an unresolved high finding unless the user explicitly says so.
    - Set criteria to `verified` with their `evidence`.
@@ -123,12 +137,12 @@ Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workit
    - how to test it locally.
 
    Without the Artifact tool, write `<root>/.midas/<id>/summary.html` and use its `file:///` path.
-5. Call `feature_status` with the `summaryUrl`. Tell the user to review the uncommitted changes in their editor, using the summary as the map, then press **Commit & PR**. If they ask for changes, make them, review again, and update the summary.
+5. Call `feature_status` with the `summaryUrl`. Tell the user to review the uncommitted changes in each sub-session's diff pane (link each session), using the summary as the map, then press **Commit & PR**. Comments they leave on a diff go to that sub-session. If they ask for changes, send them to the sub-session, review again, and update the summary.
 
 ## 6. Commit and pull requests
 
 1. On **"Commit, push and open the PRs."**: call `feature_status` with `phase: "pr"`.
-2. Commit each repo as the reference says: team style, the feature's files staged by name. Ask about any changed file the feature didn't touch.
+2. Commit each repo in its recorded `path` as the reference says: team style, the feature's files staged by name. Ask about any changed file the feature didn't touch.
 3. Push each repo, then open one draft PR per repo as the reference says. The description holds the summary link, the spec link, sibling PRs and merge order. Record the `prs`.
 4. Ask with AskUserQuestion (multiSelect) whether to add a comment on the work item with the summary and PR links, and whether to move its state. Do only what they pick.
 5. Call `feature_status` with `phase: "done"`.

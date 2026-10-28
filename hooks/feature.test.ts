@@ -55,6 +55,9 @@ test('updates keep only usable values', async () => {
     prs: [{ repo: 'JobFinance', url: 'https://evil.example/pr' }],
   })
   expect(u).toEqual({ id: 7, root: '/ws', repos: [REPO], prs: [] })
+
+  const withSession = { ...REPO, session: 'local_1' }
+  expect(parseUpdate({ id: 7, repos: [withSession, { ...REPO, session: 1 }] })?.repos).toEqual([withSession])
 })
 
 test('edits wait for approval, stay in planned repos and off base branches', async () => {
@@ -62,6 +65,8 @@ test('edits wait for approval, stay in planned repos and off base branches', asy
   expect(editBlock({ ...planned, approvals: {} }, '/ws/JobFinance/a.ts').reason).toContain('waits until the spec and plan')
   expect(editBlock(planned, '/ws/BigWeb/b.cs').reason).toContain('outside the planned repos')
   expect(editBlock(planned, '/ws/JobFinance/a.ts').repo).toEqual(REPO)
+  const delegated = { ...planned, repos: [{ ...REPO, session: 'local_1' }] }
+  expect(editBlock(delegated, '/ws/JobFinance/a.ts').reason).toContain('sub-session local_1')
   expect(editBlock({ ...planned, approvals: {} }, '/ws/.midas/7/summary.html')).toEqual({})
   expect(editBlock(planned, '/tmp/scratch.md')).toEqual({})
   expect(editBlock({ ...planned, phase: 'done' }, '/ws/BigWeb/b.cs')).toEqual({})
@@ -190,6 +195,10 @@ test('the reminder names the item, phase and gates', async () => {
   expect(text).toContain('AB#7 "Show quote activity", phase Build')
   expect(text).toContain('Approve spec passed, Approve plan passed, Commit & PR not yet')
   expect(text).toContain('invoke that skill again with 7')
+  expect(text).not.toContain('sub-sessions')
+
+  const delegated = reminderText({ ...START, phase: 'build', repos: [{ ...REPO, session: 'local_1' }] })
+  expect(delegated).toContain('Code changes run in sub-sessions (JobFinance → local_1)')
 })
 
 test('during a feature the guard refuses destructive git for everyone and asks about rm -r', async ($, on) => {
