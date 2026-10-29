@@ -30,7 +30,7 @@ For a bug that grows beyond a quick fix, suggest the full workflow, `/agentic-mi
 
 ### Step 1: Get the bug
 
-- **A work item** — digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`: load it with the Azure DevOps MCP (`wit_get_work_item`, expand Relations) and its comments. The bug is its title, description, repro steps and expectation of fix. Look at attached screenshots when they help. Other item types: say this skill is for Bugs and suggest `/agentic-midas:develop`. For a Bug, name the session as the reference's **Session title** says.
+- **A work item** — digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`: load it with the Azure DevOps MCP (`wit_get_work_item`, expand Relations) and its comments. The bug is its title, description, repro steps and expectation of fix. Look at attached screenshots when they help. Then move it into work as the reference's **Starting work** says. Other item types: say this skill is for Bugs and suggest `/agentic-midas:develop`. For a Bug, name the session as the reference's **Session title** says.
 - **A description** as the argument: use it.
 - **No argument:** take the bug from the recent conversation (error messages, repro steps, symptoms). Only when there is none, ask with AskUserQuestion: "Describe the bug — what's the expected behaviour vs the actual behaviour?"
 
@@ -40,8 +40,8 @@ For a bug that grows beyond a quick fix, suggest the full workflow, `/agentic-mi
 
 Read standards for the bug's area while analysing and planning, not as a bulk upfront read.
 
-- If `.midas/docs/INDEX.md` exists, read it, **then the specific standard files it points to that match the bug area** (an API bug → API and error-handling standards; a query bug → data-access standards). Reading INDEX.md alone is not enough.
-- Otherwise the standards are the repo's `CLAUDE.md` (plus nested `CLAUDE.md` files in the folders you touch) and `.claude/rules/**`.
+- If `.midas/docs/INDEX.md` exists, read it, **then the specific standard files it points to that match the bug area** (an API bug → API and error-handling standards; a query bug → data-access standards). Reading INDEX.md alone is not enough. Also read the review lessons for the bug's module (`.midas/docs/knowledge/review-lessons/<module>.md`) and the decision cards INDEX.md lists for that area, when they exist.
+- Otherwise the standards are the repo's `CLAUDE.md` (plus nested `CLAUDE.md` files in the folders you touch) and `.claude/rules/**`. Mention once, at the end, that `/agentic-midas:init` can build `.midas/docs/` from the code, the pipelines and past PR reviews.
 - Apply them in the fix plan (Step 4) and the fix (Step 7).
 
 ### Step 3: Analyse and assess complexity

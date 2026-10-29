@@ -1,12 +1,12 @@
 ---
 name: test-cases
-description: Create manual test cases in Azure DevOps for a Midas work item (User Story, Bug or Enabler). Works out what was really built from the item, its pull requests and the code, drafts a small set of general test cases that prove the feature works end to end as a Claude Doc the user edits and comments on, and after an explicit yes creates them in the current sprint's test plan under a suite for the item. Use when the user wants test cases, a test plan or a test suite for a work item, asks what to verify when testing it, or invokes /test-cases.
+description: Create manual test cases in Azure DevOps for a Midas work item (User Story, Bug or Enabler). Works out what was really built from the item, its pull requests and the code, drafts a small set of general test cases that prove the feature works end to end as a Claude Doc the user edits and comments on, and after an explicit yes creates them in the team's `Midas_Stories` test plan under a suite for the item. Use when the user wants test cases, a test plan or a test suite for a work item, asks what to verify when testing it, or invokes /test-cases.
 argument-hint: "<work item id or link> [what to focus on]"
 ---
 
 # Test cases for a Midas work item
 
-Draft a few general test cases that show the feature works as a Claude Doc the user edits and comments on, then create them in the sprint's test plan with the `azure-devops` MCP tools. **Nothing is written to ADO until the user says yes.**
+Draft a few general test cases that show the feature works as a Claude Doc the user edits and comments on, then create them in the `Midas_Stories` test plan with the `azure-devops` MCP tools. **Nothing is written to ADO until the user says yes.**
 
 First read `../../reference/work-items.md`, relative to this skill's base directory: Team defaults, Draft doc, Working through the doc and Test plans.
 
@@ -25,8 +25,7 @@ If the item already has Tested By links, list those test cases. Then ask whether
 
 ## 2. Find the plan and suite (read only)
 
-- Get the sprint: `work` → `list_team_iterations`, team `Midas`, timeframe `current`. Use its `name` (e.g. `122`) and `path`.
-- Get the plan: `wit_query` → `wiql`: `SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Test Plan' AND [System.Title] = 'Midas_Stories_<name>'`. If there is no such plan, it is created in step 4.
+- Get the plan: `wit_query` → `wiql`: `SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Test Plan' AND [System.Title] = 'Midas_Stories'`. If there is no such plan, it is created in step 4.
 - Get the suites: `testplan` → `list_suites` with the plan id. The top suite is the root. If a child named `<id> : …` exists, reuse it.
 
 ## 3. Draft the doc
@@ -80,7 +79,7 @@ Follow the reference's Working through the doc section.
 On **"Create it."** (the band's Create) or a clear yes in chat:
 
 1. Read the doc as it stands. If **Still needed** has questions left, ask for those instead of creating. Each `## <n>. <title>` section is a test case: its Priority line, and one step per table row. **Where**, **Not covered yet** and **Still needed** aren't test cases.
-2. **Plan**, if missing: call `testplan_test_plan_write` with `action: "create"`, `project: "BigChange"`, `name: "Midas_Stories_<n>"`, `iteration: <sprint path>` and `areaPath: "BigChange\\Finance\\Midas"`. Then `list_suites` to get its root suite.
+2. **Plan**, if missing: call `testplan_test_plan_write` with `action: "create"`, `project: "BigChange"`, `name: "Midas_Stories"`, `iteration: "BigChange\\Midas"` and `areaPath: "BigChange\\Finance\\Midas"`. Then `list_suites` to get its root suite.
 3. **Suite**, if missing: a requirement-based suite, which shows every test case linked to the item. The MCP server only creates static suites, so use the az CLI. Write the body to a file in the scratchpad:
 
    ```json
@@ -94,7 +93,7 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 4. **Test cases**: for each one, call `testplan_test_case_write` with:
    - `action: "create"` and `project: "BigChange"`
    - `title` and `priority`
-   - `areaPath: "BigChange\\Finance\\Midas"` and `iterationPath: <sprint path>`
+   - `areaPath: "BigChange\\Finance\\Midas"` and `iterationPath: "BigChange\\Midas"`
    - `testsWorkItemId: <id>`, which adds the Tested By link
    - `steps` as `1. <action>|<expected>`, one step per line
 
