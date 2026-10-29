@@ -45,7 +45,7 @@ Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, or a link with `_workit
 
 ## 1. Story
 
-1. Load the item (`wit_work_item` get, expand Relations), its comments, its parent's title, and its attachments. Collect design links from its fields: Figma, Zeplin, prototypes, screenshots.
+1. Load the item (`wit_work_item` get, expand Relations), its comments, its parent's title, and its attachments. Collect design links from its fields: Figma, Zeplin, prototypes, screenshots. Then move it into work as the reference's **Starting work** says.
 2. This version handles **User Stories**. For other types, say so and stop.
 3. If the story is weak, offer to refine it first with the `/refine-item` flow, then come back. Weak means no acceptance criteria, criteria that can't be tested, or no clear user or value.
 4. Ask in **one** message (AskUserQuestion for choices):
