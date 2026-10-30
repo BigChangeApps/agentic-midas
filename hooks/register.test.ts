@@ -173,6 +173,8 @@ test('commands name the session after their item', async () => {
 })
 
 test('the session title comes from the prompt, with the item title from az', async ($, on) => {
+  // Stands for the settings hooks beneath the plugin, which a test doesn't have.
+  on('classic.UserPromptSubmit', () => ({}))
   on('process.run', ($, e) => ({
     value: { exitCode: 0, stdout: 'Display quote activity\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
   }))
