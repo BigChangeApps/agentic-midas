@@ -191,7 +191,31 @@ git -C <repo> switch --no-track -c <branch> origin/<base>
 ```bash
 az repos pr create --org https://dev.azure.com/bigchange --project BigChange --repository <repo> \
   --source-branch <branch> --target-branch <base> --draft true --work-items <id> \
-  --title "feat: #<id> <title>" --description "<summary link, spec link, sibling PRs, merge order>"
+  --title "feat: #<id> <title>" --description "$(cat <description file>)"
 ```
+
+**PR description:** reviewers read only this, so it stands on its own. Never link claude.ai pages (specs, summaries, docs): they are private to their author. Markdown, under 4,000 characters (Azure DevOps cuts longer descriptions):
+
+```
+AB#<id> <title>: what this PR changes and why, in at most 3 lines.
+
+## How it works
+<the main flow as a ```mermaid block, which Azure DevOps renders; /feature keeps it in .midas/<id>/diagrams.md>
+
+## What changed
+- <file or area>: <one line on why>     ← this repo only, at most 8 lines
+
+## Acceptance criteria
+| Criterion | Evidence |               ← the ones this repo meets: test name or file
+
+## How to test
+1. <setup this repo needs: config, migrations, seed data, flags>
+2. <the clicks or calls that show it works>
+
+## Related PRs
+- <repo>: <PR link> · merge order: <which first>
+```
+
+Write it to a file and pass it with `$(cat …)`. When the sibling PR links exist only after every PR is open, update each description with `az repos pr update --id <id> --description "$(cat …)"`.
 
 Never merge, force-push, delete branches, or change git state nobody asked for.

@@ -15,8 +15,10 @@ import {
   parseUpdate,
   reminderText,
   statusText,
+  subRepo,
   trackerText,
 } from './feature'
+import { DRAFT_TOOL } from './register'
 
 const REPO = { name: 'JobFinance', path: '/ws/JobFinance', base: 'main' }
 const START: Feature = {
@@ -212,4 +214,140 @@ test('during a feature the guard refuses destructive git for everyone and asks a
   expect(await bash('rm -rf dist')).toBe('ask')
   expect(await bash('rm -rf /tmp/scratch')).toBe('allow')
   expect(await bash('git status')).toBe('allow')
+})
+
+test('a gate passed in another session holds: the store wins over this session\'s copy', async ($, on) => {
+  // The store every session shares, written below as the band in another session would.
+  const store = new Map<string, unknown>()
+  on('store.get', ($, e) => ({ value: store.get(e.key) }))
+  on('store.set', ($, e) => {
+    store.set(e.key, e.value)
+    return { value: undefined }
+  })
+  on('store.keys', () => ({ value: [...store.keys()] }))
+  on('tool.check', () => ({ decision: 'allow' }))
+  const status = (u: Record<string, unknown>) => $.tool.call({ tool: FEATURE_TOOL, id: 7, ...u })
+
+  await status({ title: START.title, root: '/ws', phase: 'spec', specUrl: 'https://claude.ai/code/artifact/spec' })
+  store.set('feature:7', { ...(store.get('feature:7') as Feature), phase: 'plan', approvals: { spec: true, plan: true } })
+
+  const built = await status({ phase: 'build', repos: [REPO] })
+  expect(built.isError).toBeFalsy()
+  expect((store.get('feature:7') as Feature).approvals).toEqual({ spec: true, plan: true })
+})
+
+test('an open draft has the band; a saved one gives it back to the feature', async ($, on) => {
+  mock.store(on)
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+  on('tool.check', () => ({ decision: 'allow' }))
+
+  await $.tool.call({ tool: FEATURE_TOOL, id: 7, title: START.title, root: '/ws' })
+  const draft = { tool: DRAFT_TOOL, type: 'User Story', title: START.title, url: 'https://claude.ai/code/artifact/draft', id: 7 } as const
+  await $.tool.call(draft)
+  const ui = await $.ui.mount(band)
+  expect(await ui.find({ key: 'update' })).toBeDefined()
+  expect(await ui.find({ key: 'details' })).toBeUndefined()
+
+  await $.tool.call({ ...draft, updated: true })
+  expect(await ui.find({ key: 'details' })).toBeDefined()
+})
+
+test('a sub-session sees its feature read-only, under its guards', async ($, on) => {
+  const worktree = '/ws/JobFinance/.claude/worktrees/7-x'
+  const f: Feature = {
+    ...START,
+    phase: 'build',
+    repos: [{ ...REPO, path: worktree, session: 'local_1' }],
+    approvals: { spec: true, plan: true },
+  }
+  expect(subRepo(f, worktree)?.name).toBe('JobFinance')
+  expect(subRepo({ ...f, repos: [{ ...REPO, session: 'local_1' }] }, worktree)?.name).toBe('JobFinance')
+  expect(subRepo(f, '/ws')).toBeUndefined()
+  expect(subRepo({ ...f, repos: [{ ...REPO, path: worktree }] }, worktree)).toBeUndefined()
+  expect(subRepo({ ...f, phase: 'done' }, worktree)).toBeUndefined()
+
+  mock.store(on, { 'feature:7': f })
+  on('session.root', () => ({ value: worktree }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+  on('tool.check', () => ({ decision: 'allow' }))
+  const bash = (command: string) => $.tool.check({ tool: 'Bash', input: { command } }).then(r => r.decision)
+
+  const ui = await $.ui.mount(band)
+  expect((await ui.find({ type: 'Link' }))?.props).toMatchObject({ href: 'https://dev.azure.com/bigchange/BigChange/_workitems/edit/7' })
+  expect(await ui.find({ key: 'approve-plan' })).toBeUndefined()
+  expect(await bash(`git -C ${worktree} commit -m "feat: #7 x"`)).toBe('deny')
+  expect(await bash('git stash')).toBe('deny')
+  expect(await bash('git status')).toBe('allow')
+  expect(await $.tool.check({ tool: 'Edit', input: { file_path: `${worktree}/a.ts`, old_string: 'a', new_string: 'b' } }).then(r => r.decision)).toBe('allow')
+})
+
+const pane = {
+  plugin: 'agentic-midas',
+  component: 'Pane',
+  surface: 'mobile',
+  requestId: 'midas-feature',
+  props: { title: 'AB#7', isFocused: false, bodyColumns: 60, placement: 'inline', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+} as const
+
+test('a resumed session gets its feature band back; a phone gets the gate in the pane', async ($, on) => {
+  const owned: Feature = { ...START, phase: 'plan', specUrl: 'https://claude.ai/code/artifact/spec', approvals: { spec: true }, owner: 's1' }
+  mock.store(on, { 'feature:7': owned, 'feature:8': { ...owned, id: 8, owner: 's2' } })
+  on('session.id', () => ({ value: 's1' }))
+  // What lies beneath the plugin when a session (re)starts.
+  on('tool.register', ($, e) => ({ value: { tool: e.name } }))
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+  on('tool.check', () => ({ decision: 'allow' }))
+  on('session.attach', ($, e) => ({ clientId: e.clientId }))
+  const sent: string[] = []
+  on('prompt.submit', ($, e) => {
+    sent.push(e.text)
+    return { text: e.text }
+  })
+  const opened: string[] = []
+  on('ui.open', ($, e) => {
+    opened.push(e.id)
+    return { value: {} as never }
+  })
+
+  const ui = await $.ui.mount(band)
+  expect(await ui.find({ key: 'approve-plan' })).toBeUndefined()
+  await $.session.start({ cwd: '/ws', surface: 'desktop', isInteractive: true } as never)
+  expect((await ui.find({ type: 'Link' }))?.props).toMatchObject({ href: 'https://dev.azure.com/bigchange/BigChange/_workitems/edit/7' })
+  expect(await ui.find({ key: 'approve-plan' })).toBeDefined()
+
+  await $.session.attach({ surface: 'mobile', clientId: 'phone' } as never)
+  expect(opened).toEqual(['midas-feature'])
+  const phone = await $.ui.mount(pane)
+  expect(await phone.find({ key: 'approve-plan' })).toBeDefined()
+  await phone.press({ key: 'approve-plan' })
+  expect(sent).toEqual([APPROVE_PLAN])
+  expect(await phone.find({ key: 'approve-plan' })).toBeUndefined()
+})
+
+test('every 15 seconds the band takes up a gate passed in another session', async ($, on) => {
+  const store = new Map<string, unknown>([['feature:7', { ...START, phase: 'plan', approvals: { spec: true }, owner: 's1' }]])
+  on('store.get', ($, e) => ({ value: store.get(e.key) }))
+  on('store.set', ($, e) => {
+    store.set(e.key, e.value)
+    return { value: undefined }
+  })
+  on('store.keys', () => ({ value: [...store.keys()] }))
+  const clock = mock.clock(on)
+  on('session.id', () => ({ value: 's1' }))
+  on('tool.register', ($, e) => ({ value: { tool: e.name } }))
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+
+  await $.session.start({ cwd: '/ws', surface: 'desktop', isInteractive: true } as never)
+  const ui = await $.ui.mount(band)
+  expect(await ui.find({ key: 'approve-plan' })).toBeDefined()
+
+  // The band in another session passes Approve plan.
+  store.set('feature:7', { ...START, phase: 'build', approvals: { spec: true, plan: true }, owner: 's1' })
+  await clock.advance(15_000)
+  expect(await ui.find({ key: 'approve-plan' })).toBeUndefined()
+  // The guards follow it too: code is no longer held back for the plan, only kept to the planned repos.
+  const check = await $.tool.check({ tool: 'Edit', input: { file_path: '/ws/BigWeb/b.cs', old_string: 'a', new_string: 'b' } })
+  expect(JSON.stringify(check)).toContain('outside the planned repos')
 })
