@@ -36,6 +36,32 @@ const touched = atom({ plugin: 'agentic-midas', key: 'touched' } as const, {})
 const draft = atom({ plugin: 'agentic-midas', key: 'draft' } as const, null)
 
 const storeKey = (id: number) => `feature:${id}`
+// The store is the truth across sessions: a band in another session may have passed a gate since this one last read it.
+async function load($: EngineInterface, id: number) {
+  return ((await $.store.get(storeKey(id))) as Feature | undefined) ?? null
+}
+
+// The planned repo a session works in when it is one of the feature's sub-sessions (its folder or worktree).
+export const subRepo = (f: Feature, root: string) =>
+  f.phase === 'done' ? undefined : f.repos.find(r => r.session !== undefined && (root === r.path || root.startsWith(`${r.path}/`)))
+
+// The feature a sub-session works for, found by its folder: sub-sessions never call feature_status themselves.
+// A failed lookup finds none, so it never takes the band or the guard down with it.
+async function parentFeature($: EngineInterface): Promise<{ f: Feature; repo: FeatureRepo } | undefined> {
+  try {
+    const keys = (await $.store.keys()).filter(k => k.startsWith('feature:'))
+    if (!keys.length) return undefined
+
+    const root = trim(await $.session.root())
+    for (const key of keys) {
+      const f = (await $.store.get(key)) as Feature | undefined
+      const repo = f && subRepo(f, root)
+      if (f && repo) return { f, repo }
+    }
+  } catch {}
+
+  return undefined
+}
 
 const SCHEMA = {
   type: 'object',
@@ -337,7 +363,8 @@ async function save($: EngineInterface, f: Feature) {
 }
 
 async function approve($: EngineInterface, gate: keyof FeatureApprovals, text: string) {
-  const f = await read($, feature)
+  const active = await read($, feature)
+  const f = active && ((await load($, active.id)) ?? active)
   if (!f) return
 
   await save($, { ...f, approvals: { ...f.approvals, [gate]: true } })
@@ -349,7 +376,12 @@ async function close($: EngineInterface, isDone: boolean) {
   if (!f) return
 
   if (isDone) await $.store.delete(storeKey(f.id))
-  else $.ui.toast(`Paused AB#${f.id}. /agentic-midas:feature ${f.id} picks it up again.`)
+  else {
+    // A paused feature no longer belongs to this session, so a resume doesn't bring it back.
+    const { owner: _, ...paused } = (await load($, f.id)) ?? f
+    await $.store.set(storeKey(f.id), paused)
+    $.ui.toast(`Paused AB#${f.id}. /agentic-midas:feature ${f.id} picks it up again.`)
+  }
   await update($, feature, () => null)
   await update($, touched, () => ({}))
   $.ui.status(undefined)
@@ -369,6 +401,62 @@ export function gateOf(f: Feature): Gate | undefined {
   return undefined
 }
 
+// The buttons the band and the pane share: decisions waiting, Action comments and the current gate.
+function actionsOf($: EngineInterface, f: Feature) {
+  const waiting = f.decisions.filter(d => !d.choice).length
+  const canComment = (f.phase === 'spec' || f.phase === 'plan') && f.specUrl !== undefined
+  const gate = gateOf(f)
+
+  return [
+    ...(waiting ? [{ key: 'decisions', label: `${waiting} decision${waiting === 1 ? '' : 's'} waiting`, isPrimary: false, onPress: () => say($, DECISIONS) }] : []),
+    ...(canComment ? [{ key: 'action', label: 'Action comments', isPrimary: false, onPress: () => say($, ACTION_SPEC) }] : []),
+    ...(gate ? [{ key: gate.key, label: gate.label, isPrimary: true, onPress: () => approve($, gate.approval, gate.text) }] : []),
+  ]
+}
+
+const REFRESH_MS = 15_000
+
+// Sub-sessions change the repos and other sessions may pass a gate, so neither this band nor a sub-session's waits for a command here.
+async function tick($: EngineInterface) {
+  const f = await read($, feature)
+  if (!f) {
+    if (await parentFeature($)) $.ui.invalidate('ui.render')
+    return
+  }
+
+  const saved = await load($, f.id)
+  if (saved && JSON.stringify(saved) !== JSON.stringify(f)) await update($, feature, () => saved)
+  if (order(f.phase) >= order('build') && f.phase !== 'done') await refresh($)
+}
+
+// Called from register.tsx's session.start: the feature atom lives only as long as the session's process, so a resumed session takes its feature back from the store.
+export async function resumeFeature($: EngineInterface) {
+  try {
+    const me = await $.session.id()
+    for (const key of (await $.store.keys()).filter(k => k.startsWith('feature:'))) {
+      const f = (await $.store.get(key)) as Feature | undefined
+      if (f?.owner === me) {
+        await update($, feature, () => f)
+        await refresh($)
+        break
+      }
+    }
+  } catch {}
+
+  try {
+    $.clock.every(REFRESH_MS, () => void tick($).catch(() => undefined))
+  } catch {}
+}
+
+// Phones draw no band, only panes: the pane carries the buttons there.
+async function openPane($: EngineInterface, f: Feature) {
+  await $.ui.open({ id: PANE, title: `AB#${f.id}` }).catch(() => undefined)
+}
+
+async function isOnPhone($: EngineInterface) {
+  return (await $.session.surfaces().catch((): string[] => [])).includes('mobile')
+}
+
 // Registered from register.tsx's one session.start hook.
 export const FEATURE_TOOL_SPEC = {
   name: 'feature_status',
@@ -386,12 +474,15 @@ export function registerFeature(on: On) {
     if (!u) return { result: 'Not saved: an integer id is required, and links must be https://claude.ai/ or file:///.', isError: true }
 
     const active = await read($, feature)
-    const current = active?.id === u.id ? active : (((await $.store.get(storeKey(u.id))) as Feature | undefined) ?? null)
+    const current = (await load($, u.id)) ?? (active?.id === u.id ? active : null)
     const { feature: f, error } = applyUpdate(current, u)
     if (!f) return { result: error ?? 'Not saved.', isError: true }
 
-    await save($, f)
+    // The session that records it owns it: a resume of this session restores its band.
+    await save($, { ...f, owner: await $.session.id().catch(() => undefined) })
     if (current?.phase !== f.phase || active?.id !== f.id) $.ui.toast(`AB#${f.id}: ${labelOf(f.phase)}`)
+    const gate = gateOf(f)
+    if (gate && gate.key !== (current && gateOf(current))?.key && (await isOnPhone($))) await openPane($, f)
 
     const state = JSON.stringify({ ...f, git: await read($, git) })
     return error ? { result: `${error}\n\n${state}`, isError: true } : { result: state }
@@ -404,9 +495,9 @@ export function registerFeature(on: On) {
     return why ? { decision: 'deny', reason: why } : next(e)
   })
 
-  // Subagents' calls come through here too.
+  // Subagents' calls come through here too, and a sub-session's, against the feature it works for.
   on('tool.check', { tool: 'Bash' }, async ($, e, next) => {
-    const f = await read($, feature)
+    const f = (await read($, feature)) ?? (await parentFeature($))?.f ?? null
     const command = (e.input as { command?: unknown } | undefined)?.command
     if (!f || f.phase === 'done' || !isText(command)) return next(e)
 
@@ -454,25 +545,67 @@ export function registerFeature(on: On) {
     return ran
   })
 
+  // The pane is drawn on every surface, phones included, so it carries the band's buttons too.
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Markdown, Text } = $.ui.resolve(e)
-    const f = await read($, feature)
-    if (!f) return <Text dimColor>No feature in progress.</Text>
+    const { Box, Button, Markdown, Text } = $.ui.resolve(e)
+    const active = await read($, feature)
+    if (!active) return <Text dimColor>No feature in progress.</Text>
 
-    return <Markdown text={paneMarkdown(f, await read($, git), await read($, touched))} />
+    const f = (await load($, active.id)) ?? active
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Box flexDirection="row" gap={1}>
+          {actionsOf($, f).map(a => (
+            <Button key={a.key} label={a.label} variant={a.isPrimary ? 'primary' : undefined} onPress={a.onPress} />
+          ))}
+        </Box>
+        <Markdown text={paneMarkdown(f, await read($, git), await read($, touched))} />
+      </Box>
+    )
+  })
+
+  on('session.attach', { surface: 'mobile' }, async ($, e, next) => {
+    const result = await next(e)
+    const f = await read($, feature)
+    if (f) await openPane($, f)
+
+    return result
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const f = await read($, feature)
-    // A work item draft has the band while it is open.
-    if (!f || e.props.hasSurvey || (await read($, draft))) return next(e)
+    const active = await read($, feature)
+    const d = await read($, draft)
+    // A work item draft has the band until it is saved.
+    if (e.props.hasSurvey || (d && !(d.createdId || d.updated || d.suiteUrl))) return next(e)
 
     const { Box, Button, Link, Text } = $.ui.resolve(e)
+
+    // A sub-session shows which feature and repo it builds, read-only: the gates are passed in the orchestrating session.
+    if (!active) {
+      const parent = await parentFeature($)
+      if (!parent) return next(e)
+
+      return (
+        <Box flexDirection="row" alignItems="center" gap={1}>
+          <Link href={`${ITEM_URL}${parent.f.id}`} label={`AB#${parent.f.id} ↗`} />
+          <Box flexGrow={1} flexShrink={1} minWidth={0}>
+            <Text wrap="truncate">
+              <Text bold>{parent.repo.name}</Text> for {parent.f.title}
+            </Text>
+          </Box>
+          {linksOf(parent.f).map(l => (
+            <Link href={l.href} label={l.label} />
+          ))}
+          <Box flexShrink={0}>
+            <Text dimColor>{trackerText(parent.f.phase)}</Text>
+          </Box>
+        </Box>
+      )
+    }
+
+    const f = (await load($, active.id)) ?? active
     const snaps = await read($, git)
-    const waiting = f.decisions.filter(d => !d.choice).length
-    const gate = gateOf(f)
     const isDone = f.phase === 'done'
-    const canComment = (f.phase === 'spec' || f.phase === 'plan') && f.specUrl !== undefined
     const room = Math.max(0, e.props.maxRows - 2)
 
     return (
@@ -497,11 +630,9 @@ export function registerFeature(on: On) {
             <Text dimColor>Claude is working…</Text>
           ) : (
             <Box flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
-              {waiting > 0 && (
-                <Button key="decisions" label={`${waiting} decision${waiting === 1 ? '' : 's'} waiting`} onPress={() => say($, DECISIONS)} />
-              )}
-              {canComment && <Button key="action" label="Action comments" onPress={() => say($, ACTION_SPEC)} />}
-              {gate && <Button key={gate.key} label={gate.label} variant="primary" onPress={() => approve($, gate.approval, gate.text)} />}
+              {actionsOf($, f).map(a => (
+                <Button key={a.key} label={a.label} variant={a.isPrimary ? 'primary' : undefined} onPress={a.onPress} />
+              ))}
               <Button key="details" label="Details" plain onPress={() => $.ui.open({ id: PANE, title: `AB#${f.id}` })} />
               <Button key="close" label={isDone ? 'Dismiss' : 'Pause'} plain onPress={() => close($, isDone)} />
             </Box>

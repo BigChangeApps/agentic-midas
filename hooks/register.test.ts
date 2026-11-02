@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import type { Draft } from '../types'
 import {
@@ -100,6 +100,27 @@ test('Cancel clears the band and tells Claude', async ($, on) => {
   const ui = await $.ui.mount({ ...band(false), surface: 'desktop' })
   await ui.press({ key: 'cancel' })
   expect(sent).toEqual([CANCEL])
+  expect(await ui.find({ key: 'create' })).toBeUndefined()
+})
+
+test('a resumed session gets its open draft back; Cancel forgets it', async ($, on) => {
+  mock.store(on)
+  on('session.id', () => ({ value: 's1' }))
+  // What lies beneath the plugin when a session (re)starts.
+  on('tool.register', ($, e) => ({ value: { tool: e.name } }))
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+
+  await $.tool.call({ tool: DRAFT_TOOL, ...BUG })
+  const ui = await $.ui.mount({ ...band(false), surface: 'desktop' })
+  await ui.press({ key: 'cancel' })
+  await $.tool.call({ tool: DRAFT_TOOL, ...BUG, title: 'Kept' })
+  await $.session.start({ cwd: '/ws', surface: 'desktop', isInteractive: true } as never)
+  expect(await ui.find({ text: 'Kept' })).toBeDefined()
+
+  await ui.press({ key: 'cancel' })
+  await $.session.start({ cwd: '/ws', surface: 'desktop', isInteractive: true } as never)
   expect(await ui.find({ key: 'create' })).toBeUndefined()
 })
 
