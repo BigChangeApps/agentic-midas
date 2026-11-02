@@ -40,10 +40,12 @@ export type Feature = {
   decisions: FeatureDecision[]
   prs: FeaturePr[]
   approvals: FeatureApprovals
+  // The session that drives it (`$.session.id()`); a resume of that session brings its band back. None while paused.
+  owner?: string
 }
 
 // What Claude sends to feature_status: the id, plus whatever changed.
-export type FeatureUpdate = { id: number } & Partial<Omit<Feature, 'id' | 'approvals'>>
+export type FeatureUpdate = { id: number } & Partial<Omit<Feature, 'id' | 'approvals' | 'owner'>>
 
 export type RepoGit = { name: string; branch: string; changed: number; ahead: number }
 

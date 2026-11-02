@@ -64,7 +64,7 @@ If triggered, ask with AskUserQuestion: "This bug looks bigger than a quick fix 
 
 ### Step 4: Plan mode
 
-**Use `EnterPlanMode` and write the fix plan for approval.** The standards from Step 2 and the analysis from Step 3 shape it.
+**Use `EnterPlanMode` and write the fix plan for approval.** The standards from Step 2 and the analysis from Step 3 shape it. Fetch everything you need from Azure DevOps before entering it: in plan mode every ADO call asks the user, read-only ones too.
 
 ```markdown
 ## Bug Analysis

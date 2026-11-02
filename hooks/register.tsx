@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Draft } from '../types'
 import { registerDevelop, taskSection } from './develop'
-import { FEATURE_TOOL_SPEC, featureSection, registerFeature } from './feature'
+import { FEATURE_TOOL_SPEC, featureSection, registerFeature, resumeFeature } from './feature'
 
 // This plugin's server, and a user-scope one under the same name.
 const ADO = /^mcp__(plugin_agentic-midas_)?azure-devops__/
@@ -45,6 +45,8 @@ type Input = { action?: unknown; savePath?: unknown; destinationPath?: unknown }
 const ASK = 'agentic-midas: changes in Azure DevOps need your OK'
 
 // The read tools still reorder the backlog or save downloads to disk on some inputs.
+// In plan mode an allow only counts for a tool its server marks readOnlyHint, and
+// @azure-devops/mcp marks none, so there every ADO call still asks.
 export function decide(tool: string, input: unknown): 'allow' | 'ask' {
   const name = tool.replace(ADO, '')
   const i = (input ?? {}) as Input
@@ -68,6 +70,11 @@ export const CANCEL_UPDATE = "Cancel, don't update this work item."
 export const CANCEL_TESTS = "Cancel, don't create these test cases."
 
 const draft = atom({ plugin: 'agentic-midas', key: 'draft' } as const, null)
+// The atom ends with the session's process; the store keeps a session's draft for its resume.
+// shortcut: a draft whose session is abandoned stays in the store, prune by age if the store grows.
+async function draftKey($: EngineInterface) {
+  return `draft:${await $.session.id()}`
+}
 
 const SCHEMA = {
   type: 'object',
@@ -196,6 +203,13 @@ export const register: Register = on => {
     })
     await $.tool.register(FEATURE_TOOL_SPEC)
 
+    // A resumed session gets its bands back.
+    try {
+      const saved = (await $.store.get(await draftKey($))) as Draft | undefined
+      if (saved) await update($, draft, () => saved)
+    } catch {}
+    await resumeFeature($)
+
     return next(e)
   })
 
@@ -204,6 +218,9 @@ export const register: Register = on => {
     if (!d) return { result: 'Not set: type, title and a https://claude.ai/ doc url are required.', isError: true }
 
     await update($, draft, () => d)
+    await draftKey($)
+      .then(key => $.store.set(key, d))
+      .catch(() => undefined)
 
     if (d.createdId || d.updated || d.suiteUrl) return { result: 'The band shows the saved item.' }
 
@@ -217,7 +234,12 @@ export const register: Register = on => {
     if (!d || e.props.hasSurvey) return next(e)
 
     const { Box, Button, Link, Text } = $.ui.resolve(e)
-    const clear = () => update($, draft, () => null)
+    const clear = async () => {
+      await update($, draft, () => null)
+      await draftKey($)
+        .then(key => $.store.delete(key))
+        .catch(() => undefined)
+    }
 
     const isTests = d.type === TESTS
 

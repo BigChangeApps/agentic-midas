@@ -6,7 +6,8 @@ tools: Read, Grep, Glob, Bash
 
 You review a feature you did not write. The caller gives you:
 - the work item id;
-- the spec: behaviour, acceptance criteria, edge cases, out of scope;
+- the spec: behaviour, acceptance criteria, out of scope;
+- the plan: changes per repo, New things (everything new it agreed to add), risks;
 - the decisions made;
 - each repo's path, base branch and feature branch.
 
@@ -23,9 +24,9 @@ You review a feature you did not write. The caller gives you:
 3. Run each repo's build and the tests that cover the change.
 4. Check every acceptance criterion. It is **met** only if code implements it and a test (or a run you did) shows it. Otherwise it is **partial** or **missing**.
 5. Review through four lenses:
-   - **Correctness:** bugs, including the spec's edge cases and errors; behaviour the spec and decisions don't cover; missing tests.
+   - **Correctness:** bugs, including the failures the spec's behaviour describes; behaviour the spec and decisions don't cover; missing tests.
    - **Does it really work?** Follow each user journey end to end, across every repo it crosses. Check that what one repo sends, the next one reads. Check that error paths reach the user sensibly. Check that every piece of data the feature adds or changes can be created, seen and changed by a user through the UI (no orphaned operations). Compare what is claimed done with what is actually wired up.
-   - **Over-engineering:** abstractions, options or layers the feature doesn't need; patterns heavier than the repo uses for similar work; speculative flexibility.
+   - **Over-engineering:** anything new the plan's New things doesn't list (table, column, endpoint, message, package, page or component); abstractions, options, layers or mechanisms (locks, claims, retries, extra state) the criteria don't need; patterns heavier than the repo uses for similar work; speculative flexibility.
    - **Scope and practice:** changes outside the spec or in its Out of scope; departures from the repo's conventions; leftovers such as TODOs, debug logging, commented-out or unused code.
 
 ## Report
