@@ -45,6 +45,8 @@ type Input = { action?: unknown; savePath?: unknown; destinationPath?: unknown }
 const ASK = 'agentic-midas: changes in Azure DevOps need your OK'
 
 // The read tools still reorder the backlog or save downloads to disk on some inputs.
+// In plan mode an allow only counts for a tool its server marks readOnlyHint, and
+// @azure-devops/mcp marks none, so there every ADO call still asks.
 export function decide(tool: string, input: unknown): 'allow' | 'ask' {
   const name = tool.replace(ADO, '')
   const i = (input ?? {}) as Input
