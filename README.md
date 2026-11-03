@@ -77,6 +77,7 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
 - **`/agentic-midas:init [--area=<paths>] [--pr-count=50|all] [--adr-research=open|all|none]`**: sets up `.midas/docs/`, adapted from maister's `init`. It analyses the repo (or an area of it, for the BigChange monolith), writes `project/tech-stack.md` and `architecture.md`, distills the ADRs (`adr-distill`, below), then runs `standards-discover`. You choose whether `.midas/` is committed for the team — docs and task folders together (`tasks_shared: true`, so decisions live in the framework), or docs only with `.midas/tasks/` in `.gitignore` — or kept local in `.git/info/exclude`. It never rewrites `CLAUDE.md`; it offers to append a short pointer to `.midas/docs/INDEX.md`.
 - **`/agentic-midas:standards-discover`**: finds the standards the team follows in config (`.editorconfig`, `Directory.Build.props`, …), code patterns, docs (`CLAUDE.md`, `.claude/rules`, ADRs), Azure Pipelines and the review comments on completed PRs in Azure DevOps (the ones that touched `--area`, picked from the `Merged PR <id>` commits; `--pr-count=all` reads the whole history). A script fetches the comment threads in parallel and splits them into batches of about 300 comments, one mining subagent each. Conventions seen in 2+ PRs become standards, with a confidence score and PR links, and you approve what goes into `.midas/docs/standards/`; what a reviewer had to point out even once (domain rules, races, data quirks, test gaps) becomes a review lesson in `.midas/docs/knowledge/review-lessons/<module>.md`, which `/develop` and `/quick-bugfix` read for the module they change. Rules already in `CLAUDE.md` or `.claude/rules` are linked, not copied. **`/agentic-midas:standards-update "<convention>"`** adds or changes one standard by hand.
 - **`/agentic-midas:adr-distill [--research=open|all|none] [--rehome]`**: turns the ADRs into one decision card each in `.midas/docs/decisions/`: the decision, the MUST / MUST NOT constraints for code, where it lives, its work items and PRs, and its implementation state checked against the code (ADRs often stay "Proposed" after the work merged). You approve the constraints that become standards. For each decision whose work is still open it reconstructs a research folder in `.midas/tasks/research/<date>-<adr-id>-<slug>/`, in the layout `/agentic-midas:develop --research=<folder>` reads, marked as reconstructed from the ADR and citing it, with the open questions `/develop` then asks. The ADRs stay the source of truth and are never edited; re-run it after one changes. With `--rehome` (and shared task folders) it copies every ADR into its own research folder and makes that folder the card's source, so the team can delete the ADR folder; `/agentic-midas:develop` then records new decisions as cards backed by their task folder.
+- **`/agentic-midas:standup-rota [this|next|YYYY-MM-DD]`**: picks one random standup host per working day of the week (next week by default) from the Midas team's capacity in Azure DevOps. It renders the rota as an image (Day, Date, Lead, Off, first names) with headless Chrome or Edge, copies it to the clipboard on macOS for pasting into Slack, and prints a text version. People with 0 capacity per day, their days off and the team's days off are left out, and nobody hosts twice in a week while someone else free that day hasn't hosted yet. A script reads the capacity with the az CLI, for each iteration the week touches. Run it again for a new draw.
 - **Subagent guard**, always on: subagents are refused `git stash`, `reset --hard`, `checkout -- …`, `restore`, `clean -f`, `push --force` and `branch -D`, and `rm -r` asks you. While a `.midas/tasks` workflow is open, a reminder of its state file goes into every system prompt, so it resumes at the right phase after compaction.
 
 - **Session titles**: running a command names the session after its item, such as `Test cases #361294: Display quote activity`, `Feature #361294: …`, `Develop #361294: …`, `Triage #361563: …` or `Bugfix #359792: …`, so the session list shows what each one works on. A prompt hook sets it when the command runs, with the item's title from the az CLI (the id only if az takes more than 5 s). Another plugin's prompt hook can run first and skip it, so in the desktop app each skill also renames the session once it has loaded the item.
@@ -155,6 +156,7 @@ skills/
   init/SKILL.md       /agentic-midas:init, .midas/docs/ for a repo or an area (from maister)
   standards-discover/ standards and review lessons from config, code, docs, pipelines and ADO PR reviews (from maister; scripts/collect-pr-comments.sh and the batch miner are new)
   adr-distill/        /agentic-midas:adr-distill, decision cards and reconstructed research from ADRs
+  standup-rota/       /agentic-midas:standup-rota; rota.mjs draws the hosts from ADO capacity, rota.test.mjs tests it
   standards-update/   /agentic-midas:standards-update, one standard by hand (from maister)
   docs-manager/       internal: .midas/docs/ files and INDEX.md (from maister)
   mockup-studio/      UI mockups for /develop, also runnable on its own (from maister)
@@ -201,6 +203,10 @@ Files marked *from maister* follow upstream's structure on purpose, so later ups
    npx -p typescript@5 tsc -p .
    ```
 
+   ```bash
+   node --test skills/standup-rota/rota.test.mjs
+   ```
+
    The type-check needs `.claude-plugin/types/`, which Claude Code writes the first time it loads the plugin. It is gitignored.
 
 ### Change team conventions
@@ -233,7 +239,7 @@ Templates, field names, area path, iteration and doc layout live **only** in `re
 
 ### Pull request checklist
 
-- [ ] `claude plugin validate .`, `claude plugin test .` and `tsc` pass
+- [ ] `claude plugin validate .`, `claude plugin test .`, `tsc` and `node --test skills/standup-rota/rota.test.mjs` pass
 - [ ] Tried in a `--plugin-dir` session; no ADO write without a yes
 - [ ] `version` bumped
 - [ ] README updated if commands or behaviour changed
