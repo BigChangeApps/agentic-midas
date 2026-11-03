@@ -116,12 +116,13 @@ export function parseDraft(input: unknown): Draft | null {
 const COMMANDS: Record<string, string> = {
   'new-item': 'New item',
   'refine-item': 'Refine',
+  'triage-bug': 'Triage',
   feature: 'Feature',
   'test-cases': 'Test cases',
   develop: 'Develop',
   'quick-bugfix': 'Bugfix',
 }
-const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|feature|test-cases|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|triage-bug|feature|test-cases|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
 // /develop and /quick-bugfix also take a description (and /develop a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
 const FREE_TEXT_ID = /^(?:AB)?#?(\d{3,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
 const TITLE_MAX = 80
