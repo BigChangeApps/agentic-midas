@@ -48,6 +48,8 @@ Read standards for the bug's area while analysing and planning, not as a bulk up
 
 Investigate until you have a root-cause hypothesis backed by file and line evidence, the affected files, and the tests that cover them (or the lack of any).
 
+**After `/agentic-midas:triage-bug`:** when this conversation already holds a triage of this bug, start from its root cause, fix and size. Confirm them in the code instead of investigating again.
+
 **Escalation check.** If **2 or more** of these signals hold, suggest escalating:
 
 | Signal | Example |

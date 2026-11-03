@@ -215,6 +215,11 @@ test('/develop names an item only from an id, a link or a task folder', async ()
   expect(titleFor(parseCommand('/develop Fix the 500 error on quote save')!)).toBe('Develop: Fix the 500 error on quote save')
 })
 
+test('/triage-bug names the bug from an id or link', async () => {
+  expect(parseCommand('/agentic-midas:triage-bug AB#361563')).toMatchObject({ label: 'Triage', id: 361563 })
+  expect(parseCommand('/triage-bug https://dev.azure.com/bigchange/BigChange/_workitems/edit/361563')?.id).toBe(361563)
+})
+
 test('/quick-bugfix names the bug from an id or link, and a description by its text', async () => {
   expect(parseCommand('/agentic-midas:quick-bugfix 359792')).toMatchObject({ label: 'Bugfix', id: 359792 })
   expect(parseCommand('/quick-bugfix https://dev.azure.com/bigchange/BigChange/_workitems/edit/359792')?.id).toBe(359792)
