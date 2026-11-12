@@ -83,8 +83,10 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 3. **Suite**, if missing: a requirement-based suite, which shows every test case linked to the item. The MCP server only creates static suites, so use the az CLI. Write the body to a file in the scratchpad:
 
    ```json
-   {"suiteType":"requirementTestSuite","requirementId":<id>,"parentSuite":{"id":<root suite id>},"name":"<id> : <title>","inheritDefaultConfigurations":true}
+   {"suiteType":"requirementTestSuite","requirementId":<id>,"parentSuite":{"id":<root suite id>},"name":"<id> : <title>","inheritDefaultConfigurations":false,"defaultConfigurations":[{"id":55}]}
    ```
+
+   Configuration 55 is the default configuration. Always set it like this, never inherit: some plans also assign Device Services, which gives every test case a second row in Execute, so it looks duplicated.
 
    ```bash
    az devops invoke --org https://dev.azure.com/bigchange --area testplan --resource suites --route-parameters project=BigChange planId=<plan id> --http-method POST --in-file <file> --api-version 7.1
@@ -98,7 +100,7 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
    - `steps` as `1. <action>|<expected>`, one step per line
 
    Send them in parallel.
-5. **Check** with `testplan` → `list_cases` that the suite holds every new test case. If you reused an existing static suite, add the missing ones with `testplan_test_suite_write` → `add_test_cases`.
+5. **Check** with `testplan` → `list_cases` that the suite holds every new test case, and that each has a single entry in `pointAssignments`, for the default configuration. If you reused an existing static suite, add the missing ones with `testplan_test_suite_write` → `add_test_cases`. If a reused suite shows Device Services too, tell the user to right-click the suite in Test Plans, choose **Assign configurations** and untick Device Services.
 6. Add a first line to the doc: `Created [<n> test cases](<suite link>)`, where the suite link is `https://dev.azure.com/bigchange/BigChange/_testPlans/define?planId=<plan id>&suiteId=<suite id>`. Then call `draft_work_item` again with the same values plus `suiteUrl: <suite link>`.
 7. In chat: the suite link, then a table of id, title and priority, then the criteria not covered yet.
 
