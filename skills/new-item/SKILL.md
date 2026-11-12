@@ -41,7 +41,7 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 1. Read the doc as it stands.
 2. If **Still needed** has questions left, or a Bug has no Priority, don't create. Ask for what's missing in chat.
 3. Map each `##` section and each Details line to its ADO field (the reference's tables).
-4. Call `wit_work_item_write` with `action: "create"`, `project: "BigChange"`, the exact `workItemType` (`Bug`, `Enabler`, `User Story`) and those fields, with rich text as the reference's Creating rule says.
+4. Call `wit_work_item_write` with `action: "create"`, `project: "BigChange"`, the exact `workItemType` (`Bug`, `Enabler`, `User Story`) and those fields, plus `Custom.WSJF: 0` for an Enabler or User Story (the reference's **Any type** says why), with rich text as the reference's Creating rule says.
 5. With a parent: `wit_work_item_link_write`, `action: "link"`, `updates: [{ id: <new id>, linkToId: <parent id>, type: "parent" }]`.
 6. Add a first line to the doc: `Created as [<Type> #<id>](<link>)`. Then call `draft_work_item` again with the same values plus `createdId`.
 7. Rename the session `New item #<id>: <title>`.
