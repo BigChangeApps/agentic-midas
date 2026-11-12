@@ -44,6 +44,11 @@ type Input = { action?: unknown; savePath?: unknown; destinationPath?: unknown }
 
 const ASK = 'agentic-midas: changes in Azure DevOps need your OK'
 
+// Productboard's write tools. It's a claude.ai connector, so its server name differs per account: match the tool names.
+export const PRODUCTBOARD_WRITE =
+  /^mcp__.+__(entities_entity_operations|feedback_create_feedback|documents_(create_document|create_folder|create_comment|edit_document|replace_document_content|move_item|rename_item|reply_to_comment))$/
+const ASK_PRODUCTBOARD = 'agentic-midas: changes in Productboard need your OK'
+
 // The read tools still reorder the backlog or save downloads to disk on some inputs.
 // In plan mode an allow only counts for a tool its server marks readOnlyHint, and
 // @azure-devops/mcp marks none, so there every ADO call still asks.
@@ -59,7 +64,8 @@ export const DRAFT_TOOL = 'mcp__agentic-midas__draft_work_item'
 const ITEM_URL = 'https://dev.azure.com/bigchange/BigChange/_workitems/edit/'
 const ADO_URL = 'https://dev.azure.com/bigchange/'
 const TESTS = 'Test cases'
-const TYPES: readonly string[] = ['Bug', 'Enabler', 'User Story', TESTS]
+const EPIC = 'Epic'
+const TYPES: readonly string[] = ['Bug', 'Enabler', 'User Story', EPIC, TESTS]
 
 // What the band's buttons say for the person.
 export const ACTION = 'Action the comments on the draft doc.'
@@ -79,12 +85,18 @@ async function draftKey($: EngineInterface) {
 const SCHEMA = {
   type: 'object',
   properties: {
-    type: { enum: TYPES, description: '"Test cases" for a test case draft, with id' },
+    type: {
+      enum: TYPES,
+      description: '"Test cases" for a test case draft, with id. "Epic" for an epic plan, with id when it plans into an existing epic',
+    },
     title: { type: 'string' },
     url: { type: 'string', description: "The draft doc's claude.ai link" },
-    createdId: { type: 'integer', description: 'The new work item id, once it is created' },
-    id: { type: 'integer', description: 'The existing work item being refined, or the one the test cases are for' },
-    updated: { type: 'boolean', description: 'true once the refined item is saved in Azure DevOps' },
+    createdId: { type: 'integer', description: 'The new work item id (a new epic), once it is created' },
+    id: {
+      type: 'integer',
+      description: 'The existing work item being refined, the existing epic an epic plan adds to, or the item the test cases are for',
+    },
+    updated: { type: 'boolean', description: 'true once the refined item, or the plan for an existing epic, is saved in Azure DevOps' },
     suiteUrl: { type: 'string', description: 'The test suite link, once the test cases are created' },
   },
   required: ['type', 'title', 'url'],
@@ -116,15 +128,20 @@ export function parseDraft(input: unknown): Draft | null {
 const COMMANDS: Record<string, string> = {
   'new-item': 'New item',
   'refine-item': 'Refine',
+  'plan-epic': 'Plan epic',
   'triage-bug': 'Triage',
   feature: 'Feature',
   'test-cases': 'Test cases',
   develop: 'Develop',
   'quick-bugfix': 'Bugfix',
 }
-const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|triage-bug|feature|test-cases|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
-// /develop and /quick-bugfix also take a description (and /develop a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
-const FREE_TEXT_ID = /^(?:AB)?#?(\d{3,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|plan-epic|triage-bug|feature|test-cases|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
+// /develop, /quick-bugfix and /plan-epic also take a description or another link (and /develop a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
+const FREE_TEXT = new Set(['develop', 'quick-bugfix', 'plan-epic'])
+// A bare link, such as a Productboard one, makes a poor session title; the skill names the session once it has the title.
+const ONLY_LINK = /^https?:\/\/\S+$/
+// A leading number needs 5+ digits, so a brief such as "2026 pricing refresh" or "500 error on save" isn't read as an item.
+const FREE_TEXT_ID = /^(?:AB)?#?(\d{5,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
 const TITLE_MAX = 80
 
 export type Command = { label: string; id?: number; brief: string }
@@ -139,7 +156,7 @@ export function parseCommand(prompt: string): Command | null {
   const id =
     name === 'new-item'
       ? undefined
-      : name === 'develop' || name === 'quick-bugfix'
+      : FREE_TEXT.has(name)
         ? FREE_TEXT_ID.exec(brief)?.slice(1).find(Boolean)
         : brief.match(/\d{3,}/)?.[0]
   return { label, id: id ? Number(id) : undefined, brief }
@@ -147,7 +164,9 @@ export function parseCommand(prompt: string): Command | null {
 
 // `Test cases #361294: Display quote activity`, so the session list says which item it is.
 export function titleFor(cmd: Command, itemTitle?: string): string | undefined {
-  const name = cmd.id ? `${cmd.label} #${cmd.id}${itemTitle ? `: ${itemTitle}` : ''}` : cmd.brief && `${cmd.label}: ${cmd.brief}`
+  const name = cmd.id
+    ? `${cmd.label} #${cmd.id}${itemTitle ? `: ${itemTitle}` : ''}`
+    : cmd.brief && !ONLY_LINK.test(cmd.brief) && `${cmd.label}: ${cmd.brief}`
   if (!name) return undefined
   return name.length > TITLE_MAX ? `${name.slice(0, TITLE_MAX - 1)}…` : name
 }
@@ -182,6 +201,12 @@ export const register: Register = on => {
     return decide(e.tool, e.input) === 'allow' ? { decision: 'allow' } : { decision: 'ask', reason: ASK }
   }).catch(() => ({ decision: 'ask', reason: ASK }))
 
+  // The skills never write to Productboard; if a tool call tries, the user decides.
+  on('tool.check', { tool: PRODUCTBOARD_WRITE }, async ($, e, next) => {
+    const verdict = await next(e)
+    return verdict.decision === 'deny' ? verdict : { decision: 'ask', reason: ASK_PRODUCTBOARD }
+  }).catch(() => ({ decision: 'ask', reason: ASK_PRODUCTBOARD }))
+
   // The draft tool only sets what the band shows.
   on('tool.check', { tool: DRAFT_TOOL }, () => ({ decision: 'allow' }))
 
@@ -199,7 +224,7 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'draft_work_item',
       description:
-        'Point the band above the prompt at the Midas draft doc (a work item, or test cases for one), giving the user Action comments, Create (or Update, when refining) and Cancel. Call it once the draft doc exists, and again with createdId once a new item is created, updated: true once a refined item is saved, or suiteUrl once test cases are created.',
+        'Point the band above the prompt at the Midas draft doc (a work item, an epic plan, or test cases for one), giving the user Action comments, Create (or Update, when refining) and Cancel. An epic plan always offers Create. Call it once the draft doc exists, and again with createdId once a new item is created, updated: true once a refined item or an existing epic\'s plan is saved, or suiteUrl once test cases are created.',
       inputSchema: SCHEMA,
     })
     await $.tool.register(FEATURE_TOOL_SPEC)
@@ -268,8 +293,16 @@ export const register: Register = on => {
       )
     }
 
-    const isRefine = d.id !== undefined && !isTests
-    const heading = isTests ? `Test cases #${d.id}` : isRefine ? `Refine ${d.type} #${d.id}` : `${d.type} draft`
+    // An epic plan only creates items, even when it plans into an existing epic.
+    const isEpic = d.type === EPIC
+    const isRefine = d.id !== undefined && !isTests && !isEpic
+    const heading = isTests
+      ? `Test cases #${d.id}`
+      : isRefine
+        ? `Refine ${d.type} #${d.id}`
+        : isEpic && d.id
+          ? `Epic plan #${d.id}`
+          : `${d.type} draft`
 
     // One row: the title gives way (truncates) so the buttons keep their size.
     return (

@@ -1,6 +1,6 @@
 // The work item (or a work item's test cases) being drafted, as a Claude Doc. The band above the prompt acts on it.
 export type Draft = {
-  type: 'Bug' | 'Enabler' | 'User Story' | 'Test cases'
+  type: 'Bug' | 'Enabler' | 'User Story' | 'Epic' | 'Test cases'
   title: string
   url: string
   // A new item, once created.

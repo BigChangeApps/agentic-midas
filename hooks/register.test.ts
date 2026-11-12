@@ -8,6 +8,7 @@ import {
   CANCEL_UPDATE,
   CREATE,
   DRAFT_TOOL,
+  PRODUCTBOARD_WRITE,
   UPDATE,
   decide,
   parseCommand,
@@ -24,6 +25,16 @@ test('reads run, writes and unknown tools are asked', async () => {
   expect(decide(`${PLUGIN}wit_work_item_write`, { action: 'create' })).toBe('ask')
   expect(decide(`${PLUGIN}repo_create_branch`, {})).toBe('ask')
   expect(decide(`${PLUGIN}some_new_tool`, {})).toBe('ask')
+})
+
+test("Productboard's write tools are matched, on whatever server name the connector has", async () => {
+  const PB = 'mcp__6135eb86-b031-46cd-b6a8-48810da1ac97__'
+  expect(PRODUCTBOARD_WRITE.test(`${PB}entities_entity_operations`)).toBe(true)
+  expect(PRODUCTBOARD_WRITE.test(`${PB}documents_edit_document`)).toBe(true)
+  expect(PRODUCTBOARD_WRITE.test(`${PB}feedback_create_feedback`)).toBe(true)
+  expect(PRODUCTBOARD_WRITE.test(`${PB}entities_get_entities`)).toBe(false)
+  expect(PRODUCTBOARD_WRITE.test(`${PB}documents_get_document`)).toBe(false)
+  expect(PRODUCTBOARD_WRITE.test(`${PLUGIN}wit_work_item_write`)).toBe(false)
 })
 
 test('read tools that change something are asked', async () => {
@@ -213,6 +224,8 @@ test('/develop names an item only from an id, a link or a task folder', async ()
   expect(parseCommand('/develop .midas/tasks/development/2026-10-22-361453-send-quote')?.id).toBe(361453)
   expect(parseCommand('/develop Fix the 500 error on quote save')).toMatchObject({ label: 'Develop', id: undefined })
   expect(titleFor(parseCommand('/develop Fix the 500 error on quote save')!)).toBe('Develop: Fix the 500 error on quote save')
+  // A bare link that isn't a work item makes no title; the skill names the session once it knows the item.
+  expect(titleFor(parseCommand('/develop https://github.com/org/repo/issues/12')!)).toBeUndefined()
 })
 
 test('/triage-bug names the bug from an id or link', async () => {
@@ -220,8 +233,64 @@ test('/triage-bug names the bug from an id or link', async () => {
   expect(parseCommand('/triage-bug https://dev.azure.com/bigchange/BigChange/_workitems/edit/361563')?.id).toBe(361563)
 })
 
+test('/plan-epic names an epic from its id or link, a brief by its text, and leaves a bare link to the skill', async () => {
+  expect(parseCommand('/agentic-midas:plan-epic 357001')).toMatchObject({ label: 'Plan epic', id: 357001 })
+  expect(parseCommand('/plan-epic AB#357001')?.id).toBe(357001)
+  expect(parseCommand('/plan-epic 357001 add a refunds feature')).toMatchObject({ id: 357001, brief: '357001 add a refunds feature' })
+  expect(parseCommand('/plan-epic https://dev.azure.com/bigchange/BigChange/_workitems/edit/357001')?.id).toBe(357001)
+  expect(titleFor(parseCommand('/plan-epic Payments UI and UX')!)).toBe('Plan epic: Payments UI and UX')
+
+  // A brief that starts with a short number is still a brief.
+  const year = parseCommand('/plan-epic 2026 pricing refresh')!
+  expect(year.id).toBeUndefined()
+  expect(titleFor(year)).toBe('Plan epic: 2026 pricing refresh')
+
+  for (const link of [
+    'https://bigchange.productboard.com/detail/MTpQbUVudGl0eTozZjJmYjVlYS02OTg5LTRmOWMtYTAyNi1jYTEyZmQ2MmJhOGE=',
+    'https://bigchange.productboard.com/feature-board/12345678/detail/34fd7aeb',
+  ]) {
+    const productboard = parseCommand(`/plan-epic ${link}`)!
+    expect(productboard.id).toBeUndefined()
+    expect(titleFor(productboard)).toBeUndefined()
+  }
+})
+
+const EPIC_PLAN: Draft = { type: 'Epic', title: 'Payments UI / UX', url: 'https://claude.ai/artifact/plan' }
+
+test('an epic plan always offers Create, and links the epic once saved', async ($, on) => {
+  const sent: string[] = []
+  on('prompt.submit', ($, e) => {
+    sent.push(e.text)
+    return { text: e.text }
+  })
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+
+  // A new epic: created, then linked.
+  await $.tool.call({ tool: DRAFT_TOOL, ...EPIC_PLAN })
+  const ui = await $.ui.mount({ ...band(false), surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /Epic draft/ })).toBeDefined()
+  await ui.press({ key: 'create' })
+  expect(sent).toEqual([CREATE])
+  await $.tool.call({ tool: DRAFT_TOOL, ...EPIC_PLAN, createdId: 362500 })
+  expect(await ui.find({ type: 'Text', text: /Created Epic #362500/ })).toBeDefined()
+
+  // Planning into an existing epic still offers Create, never Update.
+  await $.tool.call({ tool: DRAFT_TOOL, ...EPIC_PLAN, id: 361337 })
+  expect(await ui.find({ type: 'Text', text: /Epic plan #361337/ })).toBeDefined()
+  expect(await ui.find({ key: 'update' })).toBeUndefined()
+  await ui.press({ key: 'create' })
+  expect(sent).toEqual([CREATE, CREATE])
+
+  await $.tool.call({ tool: DRAFT_TOOL, ...EPIC_PLAN, id: 361337, updated: true })
+  expect(await ui.find({ type: 'Text', text: /Updated Epic #361337/ })).toBeDefined()
+  expect((await ui.find({ type: 'Link' }))?.props).toMatchObject({
+    href: 'https://dev.azure.com/bigchange/BigChange/_workitems/edit/361337',
+  })
+})
+
 test('/quick-bugfix names the bug from an id or link, and a description by its text', async () => {
   expect(parseCommand('/agentic-midas:quick-bugfix 359792')).toMatchObject({ label: 'Bugfix', id: 359792 })
   expect(parseCommand('/quick-bugfix https://dev.azure.com/bigchange/BigChange/_workitems/edit/359792')?.id).toBe(359792)
   expect(titleFor(parseCommand('/quick-bugfix API returns 500 on save')!)).toBe('Bugfix: API returns 500 on save')
+  expect(parseCommand('/quick-bugfix 500 error on save')?.id).toBeUndefined()
 })
