@@ -336,6 +336,8 @@ As Html: `<div><br></div><div><b>Details</b></div><div>…</div><div><b>In scope
 | Tags | `System.Tags` (`a; b`) |
 | Parent | a parent link (`wit_work_item_link_write`, type `parent`), not a field |
 
+**On create**, every Epic, Feature, User Story and Enabler also gets `Custom.WSJF: 0`. The BigChange form fills WSJF with 0 when it's empty, so an item created without it opens as changed, and saving it adds a "changed WSJF to 0" history entry.
+
 Set `System.AssignedTo` (email) only when the user asks, or when starting work (see **Starting work**).
 
 ---

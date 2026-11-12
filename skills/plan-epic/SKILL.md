@@ -45,6 +45,8 @@ When a repo isn't checked out, `search_code` finds it in ADO. Keep it shallow: w
 
 **Check the map before the plan rests on it.** The agent's report is a lead, not evidence. Read the code yourself for every claim a feature, a repo in the feature map or a criterion depends on (a file, a field, what a component allows); an agent's "could" or "probably" needs this most. Leave out what doesn't hold up, and turn what you can't confirm into a **Still needed** question.
 
+**Bugs found while mapping don't become features.** Say what you found in chat, with its evidence, and offer to raise it with `/new-item bug`. Once raised, list it under **Related work**.
+
 What the map adds to the slicing in step 5:
 
 - **Slice vertically, never by repo.** Each story covers the screen, the service changes and the syncs it needs, in every repo it touches. Changes to existing endpoints and syncs go inside the stories that need them, as criteria groups such as **Saving** or **Sync**. Never make a "backend support" or "sync" feature for them.
@@ -79,6 +81,7 @@ The plan stands or falls on this step.
 - **Merge features** when one can't be tested without the other.
 - **Don't split one screen by its states.** A screen's not-set-up, empty, live and error states belong to one story. Split by screen or by who uses it. A story that builds a screen without its empty state leaves a gap nobody owns.
 - **Don't make a feature of one small part used in two places**, such as a banner on two pages. It's a criteria group in each page's story.
+- **Say what the flag off shows.** When a story changes a screen customers already use and ships behind a flag, its criteria get a **Flag off** group: with the flag off, the screen is today's, unchanged. Nothing customers rely on is removed until its replacement is switched on, so tie a removal to the replacement's flag and say so in both stories.
 - **Every in-scope thing belongs to exactly one feature.** Each story's Out of scope names the feature that owns each neighbouring thing, or says it isn't in this epic. These cross-references are what keep AI work on one story from spilling into the next, so write them for every story.
 - **Cover the epic's Scope.** Every Scope bullet maps to at least one feature, and no feature falls outside Scope. When it doesn't line up, fix the features, or change the Scope through the doc's **What changes in Epic** section (step 6), and say which in chat.
 - **Order by dependency:** data and services first, then creating and editing, then what customers see, then lifecycle, then extras. A feature that needs another's endpoint or screen comes after it. The feature map says what each depends on, which repos it touches (from step 3), and whether it's MVP or Later.
@@ -152,6 +155,16 @@ Call `draft_work_item` with `type: "Epic"`, the epic's title, the doc's `url`, a
 
 Follow the reference's **Working through the doc**. When a change moves something between features, update both stories' In scope and Out of scope, and the feature map.
 
+**Offer an independent review before Create**, once the user's comments are actioned. Don't force it. On a yes, send one general-purpose agent the doc's link and the repos it names, with nothing of your reasoning. Ask it to find:
+
+- gaps between stories, where nothing owns a thing;
+- an Out of scope line that no other story's In scope matches;
+- code claims that don't hold;
+- a changed screen behind a flag with no **Flag off** group;
+- criteria that can't be tested.
+
+Check each finding in the doc or the code, then add the ones that hold as doc comments and action them like any other.
+
 ## 8. Create
 
 On **"Create it."** (the band's Create) or a clear yes in chat:
@@ -159,7 +172,7 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 1. Read the doc as it stands.
 2. If **Still needed** asks anything that changes which features exist or what they cover, don't create; ask for it in chat. Missing product fields don't block. ADO fills in its own defaults on create (Priority 2 on every item, Marketing level ML3 on an epic), so say those are ADO's defaults for the product manager to change.
 3. **An existing epic:** read it again with `expand: "Relations"`. Compare it with the `rev` from step 1. When someone else changed a field you're about to write, show what changed and ask first. Changes to other fields (an iteration, a board column) don't stop you; say what they were in chat and go on.
-4. Write in this order, with area `BigChange\Finance\Midas`, iteration `BigChange\Midas` and rich text as the reference's **Creating** rule says. **Link each item as soon as it's created, and put its id in its doc heading (`(#<id>)`) straight away.** A feature or child whose heading already has an id exists: skip it.
+4. Write in this order, with area `BigChange\Finance\Midas`, iteration `BigChange\Midas`, `Custom.WSJF: 0` on every create (the reference's **Any type** says why) and rich text as the reference's **Creating** rule says. **Link each item as soon as it's created, and put its id in its doc heading (`(#<id>)`) straight away.** A feature or child whose heading already has an id exists: skip it.
    1. **The Epic**:
       - **New:** `wit_work_item_write` `create`, `workItemType: "Epic"`, the reference's **Epic fields**, plus its **Product fields** only where the doc gives a value. When the source is a Productboard item, `wit_work_item_link_write` `link` with `updates: [{ id: <epic id>, type: "hyperlink", url: <the Productboard link>, comment: "Productboard reference" }]`.
       - **Existing, with a What changes section:** `wit_work_item_write` `update` with exactly the fields that section lists (a changed Scope means sending the whole Description with that section changed), starting with `{ op: "test", path: "/rev", value: <rev from the read in item 3> }` and keeping each field's format (`multilineFieldsFormat`). Add the Productboard hyperlink the same way only if it's missing.
