@@ -192,6 +192,7 @@ test('a test case draft offers Create, then links the suite', async ($, on) => {
 
 test('commands name the session after their item', async () => {
   expect(parseCommand('/agentic-midas:test-cases AB#361294')).toEqual({ label: 'Test cases', id: 361294, brief: 'AB#361294' })
+  expect(parseCommand('/agentic-midas:run-tests 362307')).toEqual({ label: 'Run tests', id: 362307, brief: '362307' })
   expect(parseCommand('/feature https://dev.azure.com/bigchange/BigChange/_workitems/edit/361294')?.id).toBe(361294)
   expect(parseCommand('/agentic-midas:new-item bug 500 on invoice save')?.id).toBeUndefined()
   expect(parseCommand('Create it.')).toBeNull()

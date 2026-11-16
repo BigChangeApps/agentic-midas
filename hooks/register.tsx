@@ -132,10 +132,11 @@ const COMMANDS: Record<string, string> = {
   'triage-bug': 'Triage',
   feature: 'Feature',
   'test-cases': 'Test cases',
+  'run-tests': 'Run tests',
   develop: 'Develop',
   'quick-bugfix': 'Bugfix',
 }
-const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|plan-epic|triage-bug|feature|test-cases|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|plan-epic|triage-bug|feature|test-cases|run-tests|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
 // /develop, /quick-bugfix and /plan-epic also take a description or another link (and /develop a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
 const FREE_TEXT = new Set(['develop', 'quick-bugfix', 'plan-epic'])
 // A bare link, such as a Productboard one, makes a poor session title; the skill names the session once it has the title.
