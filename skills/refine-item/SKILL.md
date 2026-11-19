@@ -37,7 +37,7 @@ When the item doesn't answer a question, say so plainly. That gap is often what 
 When the user asks to refine, rewrite or update it, or agrees to a change you offered:
 
 1. Start from the item's current values. Map each field to its template section, and convert rich text to markdown (the reference's Reading rule). Fields outside the template stay out of the doc and untouched.
-2. Apply the changes the user asked for or agreed to. Don't rewrite text nobody asked about, with one exception: acceptance criteria written as Given/When/Then become plain statements (the reference's rule), listed under **What changes**. Never add "Given", "When" or "Then" to criteria that don't have them. Never invent facts: unknowns go under **Still needed**.
+2. Apply the changes the user asked for or agreed to. Don't rewrite text nobody asked about, with two exceptions, both listed under **What changes**: acceptance criteria written as Given/When/Then become plain statements (the reference's rule), and bare work item numbers become linked `#<id>` (the reference's **Other work items**). Never add "Given", "When" or "Then" to criteria that don't have them. Never invent facts: unknowns go under **Still needed**.
 3. Lay the doc out as the reference says, with this section first:
 
    ```
@@ -68,8 +68,9 @@ On **"Update it."** (the band's Update) or a clear yes in chat:
    - Write rich text as the reference's Updating rule says.
    - Leave state, assignee and `Custom.AITicketCreation` alone unless the user asked.
 5. If the parent changed, remove the old link (`wit_work_item_link_write`, `action: "unlink"`, `type: "parent"`) and link the new one (`action: "link"`, `type: "parent"`).
-6. Add a first line to the doc: `Updated [<Type> #<id>](<link>)`. Then call `draft_work_item` again with the same values plus `updated: true`.
-7. In chat: `Updated <Type> #<id>: <the fields that changed>`, then the link.
+6. Link the items its fields now mention, as the reference's **Linked items** says.
+7. Add a first line to the doc: `Updated [<Type> #<id>](<link>)`. Then call `draft_work_item` again with the same values plus `updated: true`.
+8. In chat: `Updated <Type> #<id>: <the fields that changed>`, then the link, then `Related: #<id>, …` for the items linked in step 6.
 
 If the update fails, show the error as it came back and say **nothing was updated**. A failed rev test means someone edited the item meanwhile, so go back to step 2. The band stays, so the user can press Update again.
 

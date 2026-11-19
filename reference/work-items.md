@@ -57,6 +57,8 @@ Create the draft as a Claude Doc with the docs connector, following its instruct
 
 **Never invent facts:** repro steps, personas, numbers, environments and customer impact come from the user, the item or the context. Anything unknown goes under **Still needed** as a question.
 
+**Other work items:** name another item by what it is, then `#<id>` linked to its page, never a bare number: `the Finance Payments page ([#362459](https://dev.azure.com/bigchange/BigChange/_workitems/edit/362459))`. In ADO it then shows as a link, and the item gets a Related link to it (the **Linked items** rule).
+
 Then call `draft_work_item` (`mcp__agentic-midas__draft_work_item`, load it with ToolSearch if needed) so the band above the prompt acts on the doc.
 
 ## Working through the doc
@@ -71,9 +73,11 @@ The user edits the doc directly and leaves comments on selected words. **The doc
 
 The rich-text fields are those with Html in the tables below.
 
-- **Creating:** send them with `format: "Html"`, using only `<div>`, `<b>`, `<br>`, `<ol>`, `<ul>` and `<li>`, plus `<a href="…">…</a>` for a link (such as a Feature's prototype link). Close every tag and escape `&`, `<` and `>` in the user's text.
-- **Updating:** keep each field in the format the item already has. `multilineFieldsFormat` in the item read says which: send markdown for `markdown`, and HTML as above for `html` or a field it doesn't list.
-- **Reading into the doc:** convert HTML to markdown, and drop empty `<div>`, `<span>` and `<br>` noise.
+- **Creating:** send them with `format: "Html"`, using only `<div>`, `<b>`, `<br>`, `<ol>`, `<ul>` and `<li>`, plus `<a href="…">…</a>` for a link (such as a Feature's prototype link). Write each `#<id>` as ADO's work item mention, the markup its editor makes when someone types `#<id>`, so it shows as a link to that item: `<a href="https://dev.azure.com/bigchange/BigChange/_workitems/edit/<id>/" data-vss-mention="version:1.0">#<id></a>`. Close every tag and escape `&`, `<` and `>` in the user's text.
+- **Updating:** keep each field in the format the item already has. `multilineFieldsFormat` in the item read says which: send markdown for `markdown` (a plain `#<id>` is a link there), and HTML as above for `html` or a field it doesn't list.
+- **Reading into the doc:** convert HTML to markdown, a work item mention to `[#<id>](<link>)`, and drop empty `<div>`, `<span>` and `<br>` noise. A bare number that names another work item, such as `(362459)`, becomes a linked `#<id>` too.
+
+**Linked items:** after creating or updating an item, give it a Related link to each `#<id>` its fields mention that it has no link to yet of any type (parent, child, related, predecessor and so on, from its relations): one `wit_work_item_link_write` call, `action: "link"`, `updates: [{ id: <item id>, linkToId: <mentioned id>, type: "related" }, …]`. The team adds these by hand next to its `#<id>` mentions, so the Links tab lists every item the text refers to. Never remove a link because its mention went away. If linking fails, say the item itself was saved and which links are missing.
 
 ---
 
