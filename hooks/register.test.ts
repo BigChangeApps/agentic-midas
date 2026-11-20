@@ -229,6 +229,17 @@ test('/develop names an item only from an id, a link or a task folder', async ()
   expect(titleFor(parseCommand('/develop https://github.com/org/repo/issues/12')!)).toBeUndefined()
 })
 
+test('/deliver names the item from an id, a link or a delivery folder; /close-item from an id', async () => {
+  expect(parseCommand('/agentic-midas:deliver AB#361453 --until=pr')).toMatchObject({ label: 'Deliver', id: 361453 })
+  expect(parseCommand('/deliver .midas/tasks/delivery/2026-11-20-361453-send-quote')?.id).toBe(361453)
+  expect(titleFor(parseCommand('/deliver 361453')!, 'Send quote by email')).toBe('Deliver #361453: Send quote by email')
+  expect(parseCommand('/deliver https://dev.azure.com/bigchange/BigChange/_workitems/edit/361453 --tier=high')?.id).toBe(361453)
+  // Flags alone name nothing; the skill asks for the item.
+  expect(parseCommand('/deliver --until=pr')).toMatchObject({ label: 'Deliver', id: undefined })
+  expect(titleFor(parseCommand('/deliver --until=pr')!)).toBeUndefined()
+  expect(parseCommand('/agentic-midas:close-item 361453')).toMatchObject({ label: 'Close', id: 361453 })
+})
+
 test('/triage-bug names the bug from an id or link', async () => {
   expect(parseCommand('/agentic-midas:triage-bug AB#361563')).toMatchObject({ label: 'Triage', id: 361563 })
   expect(parseCommand('/triage-bug https://dev.azure.com/bigchange/BigChange/_workitems/edit/361563')?.id).toBe(361563)
