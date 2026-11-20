@@ -30,7 +30,7 @@ For a bug that grows beyond a quick fix, suggest the full workflow, `/agentic-mi
 
 ### Step 1: Get the bug
 
-- **A work item** — digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`: load it with the Azure DevOps MCP (`wit_get_work_item`, expand Relations) and its comments. The bug is its title, description, repro steps and expectation of fix. Look at attached screenshots when they help. Then move it into work as the reference's **Starting work** says. Other item types: say this skill is for Bugs and suggest `/agentic-midas:develop`. For a Bug, name the session as the reference's **Session title** says.
+- **A work item** — digits, `#123`, `AB#123`, or a link with `_workitems/edit/<id>` or `?workitem=<id>`: load it with the Azure DevOps MCP (`wit_work_item`, `action: "get"`, expand Relations) and its comments. The bug is its title, description, repro steps and expectation of fix. Look at attached screenshots when they help. Then move it into work as the reference's **Starting work** says. Other item types: say this skill is for Bugs and suggest `/agentic-midas:develop`. For a Bug, name the session as the reference's **Session title** says.
 - **A description** as the argument: use it.
 - **No argument:** take the bug from the recent conversation (error messages, repro steps, symptoms). Only when there is none, ask with AskUserQuestion: "Describe the bug — what's the expected behaviour vs the actual behaviour?"
 
@@ -48,7 +48,7 @@ Read standards for the bug's area while analysing and planning, not as a bulk up
 
 Investigate until you have a root-cause hypothesis backed by file and line evidence, the affected files, and the tests that cover them (or the lack of any).
 
-**After `/agentic-midas:triage-bug`:** when this conversation already holds a triage of this bug, start from its root cause, fix and size. Confirm them in the code instead of investigating again.
+**After `/agentic-midas:triage-bug`:** when this conversation already holds a triage of this bug, or the bug carries one (state `Ready` or later with Impact on Development filled, and the triage comment), start from its root cause, fix and size. Confirm them in the code instead of investigating again.
 
 **Escalation check.** If **2 or more** of these signals hold, suggest escalating:
 

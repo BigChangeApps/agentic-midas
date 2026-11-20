@@ -183,6 +183,6 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 5. **If a call fails**, stop. Show the error as it came back, read the epic again with `expand: "Relations"` to see what really exists, list that with links, and say nothing else was created. Pressing **Create** again carries on from there, because every item that exists has its id in the doc. Never slice again to resume. In a new session, `/plan-epic <epic id>` with the doc's link does the same.
 6. Add a first line to the doc: `Created in [Epic #<id>](<link>)`, with what was created. Call `draft_work_item` again with the same values plus `createdId: <epic id>` for a new epic, or `id: <epic id>` and `updated: true` for an existing one.
 7. Rename the session `Plan epic #<id>: <title>`.
-8. In chat: a table of what was created (type, id as a link, title, parent), the build order the predecessor links set, then one line on what comes next: `/refine-item <story id>` to write a story's full criteria when the team picks it up, then `/feature` to build it.
+8. In chat: a table of what was created (type, id as a link, title, parent), the build order the predecessor links set, then one line on what comes next: `/refine-item <story id>` to write a story's full criteria when the team picks it up, then `/feature` to build a story (`/develop` for an Enabler), or `/deliver <id>` to take either from the board to Done.
 
 **"Cancel, don't create this work item."** (the band's Cancel): write nothing to ADO. Reply `Cancelled — nothing created. The plan doc stays in your claude.ai gallery.`

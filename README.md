@@ -13,6 +13,15 @@ Claude Code plugin for the Midas team's Azure DevOps workflow.
 - **`/agentic-midas:test-cases <id or link> [focus]`**: works out what the item really delivers from its acceptance criteria, merged pull requests and code. It drafts a small set of general test cases as a **Claude Doc**, one table of steps and expected results per case, which you edit and comment on. The cases check the feature works end to end, not exact labels, and the feature decides how many cases and steps there are. **Create** puts them in the team's `Midas_Stories` test plan, in a requirement-based suite `<id> : <title>` linked to the item. Criteria that can't be tested yet (they wait on other work) are listed in the doc instead of becoming test cases.
 - **Draft band** above the prompt, while a draft (work item, epic plan or test cases) is open (**Update** in place of Create when refining): **Open doc**, **Action comments** (Claude works through every open comment thread, edits the doc and replies in each thread), **Create** (Claude reads the doc as it stands, maps it to ADO fields and creates the item) and **Cancel**. The buttons hide while Claude is working. Once the item exists, the band links to it, or to the test suite. Claude points the band at the doc through the plugin's `draft_work_item` tool.
 
+- **`/agentic-midas:deliver <id or link> [--until=pr|merged|done] [--from=STAGE] [--tier=low|medium|high]`**: takes one Bug, User Story or Enabler from the board to Done by running the other commands in order: **Intake → Ready → Mandate → Build → PR → CI → Review → Test → Close → Learn**.
+  - **Intake** works out where the item really stands from ADO, git and its pull requests, so running it again on the same id carries on, whatever happened in between.
+  - **Ready** triages a Bug (`/triage-bug`) or checks a story has testable criteria and no open predecessor (`/refine-item` when it doesn't), and fixes the criteria as the delivery's contract.
+  - **Mandate** is the one gate up front. It sizes the risk (size, data, money, security, shared code, clarity, reversibility, customers) into a tier, picks the route (`/quick-bugfix`, `/develop` or `/feature`) and asks what the run may decide alone: on a low tier it passes "continue?" gates, applies fixable verification findings, opens the draft PR and fixes its own pipeline failures; on a high tier it only skips "continue?" gates that review nothing new. The spec and the plan are yours to approve on every tier but low. Scope and behaviour questions, anything new the plan didn't list, every change a reviewer's comment asks for, test cases, the test run, closing and every merge are always yours.
+  - **CI** watches the PR's pipeline and fixes what the change broke, at most twice. **Review** runs `/request-review`, waits, then `/handle-review` on the comments, at most three rounds; a design objection goes back to the plan. **Test** runs `/test-cases` and `/run-tests` once the change is deployed; a failure the change caused goes back to Build. **Close** runs `/close-item`.
+  - **Learn** writes a retro and offers each lesson as the cheapest thing that stops a repeat: a standard, a review lesson for the module, a decision card, or a follow-up item for a test or lint rule.
+  - It keeps `.midas/tasks/delivery/YYYY-MM-DD-<id>-<slug>/` (state, an append-only journal of what was asked and what the mandate decided, the retro) and one status comment on the work item, updated in place. Add the tag `agent-stop` to the item to halt a run from the board.
+
+  The guards don't change: every Azure DevOps write still shows its prompt, `/feature`'s band buttons are still yours, and it never merges a pull request. `/develop` honours the mandate when `/deliver` runs it (`--delivery=<folder>`); run on its own it asks at every gate as before.
 - **`/agentic-midas:feature <story id or link>`**: develops a user story end to end, through **Story → Spec → Plan → Build → Review → PR**:
   - checks the story and its designs, and asks instead of guessing;
   - writes a short, behaviour-only feature spec (a Claude Doc you edit and comment on): what the user does and sees, and the story's acceptance criteria made testable. The `spec-auditor` agent audits it in a fresh context, and its findings arrive as doc comments.;
@@ -142,7 +151,7 @@ Everyone on the team can change this plugin: fix a template, sharpen a skill, or
   marketplace.json    makes this repo installable as a marketplace
 .mcp.json             Azure DevOps and Playwright MCP servers (pinned versions)
 reference/
-  work-items.md       team defaults, doc layout, templates, ADO field map, branches/commits/PRs; shared by the skills
+  work-items.md       team defaults, the board lifecycle, doc layout, templates, ADO field map, branches/commits/PRs; shared by the skills
   pull-requests.md    finding and reading a pull request, comment rules, posting threads, replies and votes; shared by the review skills
   uk-finance.md       HMRC and gov.uk sources for UK finance questions; used by /triage-bug
 skills/
@@ -150,6 +159,7 @@ skills/
   refine-item/SKILL.md
   plan-epic/SKILL.md  /agentic-midas:plan-epic, an Epic, its Features and one child each
   feature/SKILL.md
+  deliver/            /agentic-midas:deliver, one item from the board to Done; references/mandate.md (tiers, what a run may decide alone), references/state-and-journal.md
   test-cases/SKILL.md
   run-tests/SKILL.md     /agentic-midas:run-tests, run an item's test cases in Chrome and record the results through the ADO runner
   develop/SKILL.md    /agentic-midas:develop, the 14-phase orchestrator (from maister)
