@@ -135,12 +135,16 @@ const COMMANDS: Record<string, string> = {
   'run-tests': 'Run tests',
   develop: 'Develop',
   'quick-bugfix': 'Bugfix',
+  deliver: 'Deliver',
+  'close-item': 'Close',
 }
-const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|plan-epic|triage-bug|feature|test-cases|run-tests|develop|quick-bugfix)(?:\s+([\s\S]*))?$/
-// /develop, /quick-bugfix and /plan-epic also take a description or another link (and /develop a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
-const FREE_TEXT = new Set(['develop', 'quick-bugfix', 'plan-epic'])
+const COMMAND = /^\/(?:agentic-midas:)?(new-item|refine-item|plan-epic|triage-bug|feature|test-cases|run-tests|develop|quick-bugfix|deliver|close-item)(?:\s+([\s\S]*))?$/
+// /develop, /quick-bugfix and /plan-epic also take a description or another link (and /develop and /deliver a task folder), so only an id, a link or a `YYYY-MM-DD-<id>-` folder names an item.
+const FREE_TEXT = new Set(['develop', 'quick-bugfix', 'plan-epic', 'deliver'])
 // A bare link, such as a Productboard one, makes a poor session title; the skill names the session once it has the title.
 const ONLY_LINK = /^https?:\/\/\S+$/
+// Flags alone (`/deliver --until=pr`) name nothing either.
+const ONLY_FLAGS = /^--\S+(?:\s+--\S+)*$/
 // A leading number needs 5+ digits, so a brief such as "2026 pricing refresh" or "500 error on save" isn't read as an item.
 const FREE_TEXT_ID = /^(?:AB)?#?(\d{5,})\b|_workitems\/edit\/(\d+)|[?&]workitem=(\d+)|\d{4}-\d{2}-\d{2}-(\d{3,})-/
 const TITLE_MAX = 80
@@ -167,7 +171,7 @@ export function parseCommand(prompt: string): Command | null {
 export function titleFor(cmd: Command, itemTitle?: string): string | undefined {
   const name = cmd.id
     ? `${cmd.label} #${cmd.id}${itemTitle ? `: ${itemTitle}` : ''}`
-    : cmd.brief && !ONLY_LINK.test(cmd.brief) && `${cmd.label}: ${cmd.brief}`
+    : cmd.brief && !ONLY_LINK.test(cmd.brief) && !ONLY_FLAGS.test(cmd.brief) && `${cmd.label}: ${cmd.brief}`
   if (!name) return undefined
   return name.length > TITLE_MAX ? `${name.slice(0, TITLE_MAX - 1)}…` : name
 }

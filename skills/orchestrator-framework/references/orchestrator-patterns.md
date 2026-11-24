@@ -81,6 +81,10 @@ Decide this policy at orchestrator entry. Do NOT re-evaluate it at each gate. Re
 
 If you ever find yourself reasoning "the user has been approving everything / told me to continue / set auto-mode, so I can skip this gate," that reasoning is the failure mode. STOP and fire the gate.
 
+### 2.2 The one exception: a recorded delivery mandate
+
+When an orchestrator runs under `/agentic-midas:deliver` (`--delivery=<path>`), the user has answered named kinds of gate in advance, through `AskUserQuestion` at `/deliver`'s Mandate gate. That answer is recorded in `<path>/orchestrator-state.yml` under `delivery_context.mandate.may`. A gate whose key is in that list is answered from it and logged to `<path>/journal.md`; every other gate fires as written. This is a stated answer from the user for that kind of gate, not an inference from a mode, a reminder or past approvals, so § 2.1 stands unchanged for everything else. The keys, and what no mandate covers, are in `../../deliver/references/mandate.md`.
+
 ### Phase Entry Checks
 
 Every phase that follows a `→ MANDATORY GATE` includes an entry check at its TOP:
