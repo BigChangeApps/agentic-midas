@@ -9,7 +9,7 @@ A delivery keeps three records. The work item, git and the pull requests stay th
   retro.md                 written by the Learn stage
 ```
 
-The folder follows the repo's `.midas/config.yml`: with `tasks_shared: true` it is committed with the code, otherwise it stays local.
+The folder sits under the resolver's `tasks` (the home's, when there is one) and is committed as the **Task folders** section of `reference/midas-paths.md` says: never when `tasksShared` is false, with the code in repo mode, in the home repo on its own in home mode.
 
 ## `orchestrator-state.yml`
 

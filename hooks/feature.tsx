@@ -187,8 +187,18 @@ export function applyUpdate(current: Feature | null, u: FeatureUpdate): { featur
   return { feature: { ...current, ...fields, id: current.id, phase, approvals: kept }, error }
 }
 
+// A file in the `.midas/` of the workspace or of a repo directly in it, the home repo included: task folders, docs, the
+// change summary. A path with `.` or `..` segments never counts, so `<repo>/.midas/../src` can't slip past the gate.
+export function isMidasFile(root: string, path: string) {
+  const segments = path.slice(root.length + 1).split('/')
+  if (segments.some(s => s === '' || s === '.' || s === '..')) return false
+
+  const at = segments.indexOf('.midas')
+  return (at === 0 || at === 1) && at < segments.length - 1
+}
+
 export function editBlock(f: Feature | null, path: string): { reason?: string; repo?: FeatureRepo } {
-  if (!f || f.phase === 'done' || !path.startsWith(`${f.root}/`) || path.startsWith(`${f.root}/.midas/`)) return {}
+  if (!f || f.phase === 'done' || !path.startsWith(`${f.root}/`) || isMidasFile(f.root, path)) return {}
   if (!f.approvals.spec || !f.approvals.plan) {
     return { reason: `AB#${f.id} is in ${labelOf(f.phase)}: code waits until the spec and plan are approved in the band.` }
   }

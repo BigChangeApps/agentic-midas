@@ -70,6 +70,13 @@ test('edits wait for approval, stay in planned repos and off base branches', asy
   const delegated = { ...planned, repos: [{ ...REPO, session: 'local_1' }] }
   expect(editBlock(delegated, '/ws/JobFinance/a.ts').reason).toContain('sub-session local_1')
   expect(editBlock({ ...planned, approvals: {} }, '/ws/.midas/7/summary.html')).toEqual({})
+  expect(editBlock({ ...planned, approvals: {} }, '/ws/agentic-midas-home/.midas/tasks/feature/7/summary.html')).toEqual({})
+  expect(editBlock(planned, '/ws/BigWeb/.midas/docs/INDEX.md')).toEqual({})
+  expect(editBlock(planned, '/ws/BigWeb/src/.midas.cs').reason).toContain('outside the planned repos')
+  expect(editBlock({ ...planned, approvals: {} }, '/ws/BigWeb/.midas/../src/a.cs').reason).toContain('waits until the spec and plan')
+  expect(editBlock({ ...planned, approvals: {} }, '/ws/BigWeb/./.midas/x.md').reason).toContain('waits until the spec and plan')
+  expect(editBlock({ ...planned, approvals: {} }, '/ws/BigWeb/node_modules/pkg/.midas/x.md').reason).toContain('waits until the spec and plan')
+  expect(editBlock({ ...planned, approvals: {} }, '/ws/BigWeb/.midas').reason).toContain('waits until the spec and plan')
   expect(editBlock(planned, '/tmp/scratch.md')).toEqual({})
   expect(editBlock({ ...planned, phase: 'done' }, '/ws/BigWeb/b.cs')).toEqual({})
 

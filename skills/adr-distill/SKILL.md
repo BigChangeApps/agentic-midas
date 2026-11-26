@@ -17,7 +17,7 @@ The ADRs stay the source of truth until a team retires them. Cards link to their
 | `--adr-dir=<path>` | found | The ADR folder. Otherwise the first of `adr/`, `docs/adr/`, `docs/adrs/`, `docs/decisions/`, `decisions/`, `doc/adr/`, `docs/architecture/decisions/` that holds `.md` files. |
 | `--research=` | `open` | `open`: research folders for ADRs whose work is not done; `all`: also for done ones; `none`: cards only. |
 | `--only=` | all | Comma-separated ADR ids or file name prefixes to (re)distill. |
-| `--rehome` | — | Make shared task folders the source of every decision so the ADR folder can be retired: implies `--research=all` for every ADR (superseded ones too), copies each ADR into its folder and re-points the cards to it. Needs `tasks_shared: true` in `.midas/config.yml`; otherwise say so and stop. |
+| `--rehome` | — | Make shared task folders the source of every decision so the ADR folder can be retired: implies `--research=all` for every ADR (superseded ones too), copies each ADR into its folder and re-points the cards to it. Needs the resolver's `tasksShared` true (`../../reference/midas-paths.md`); otherwise say so and stop. |
 
 ## Phase Configuration
 
@@ -81,13 +81,13 @@ Run the `docs-operator` subagent (subagent_type: `agentic-midas:docs-operator`) 
 Skip with `--research=none` (and no `--rehome`).
 
 1. **Candidates**: `open` → ADRs not superseded whose implementation is `not-started`, `partial` or `unknown`; `all` → every non-superseded ADR; `--rehome` → every ADR, superseded ones included, since the ADR files may be deleted afterwards.
-2. Skip candidates that already have a folder (`.midas/tasks/research/*-<adr-id-lowercase>-*`) unless `--only` names them. With `--rehome`, an existing folder still needs `outputs/original-adr.md`: copy the ADR there (`cp`) and add the `decision-log.md` header from the prompt if it lacks one, without redoing the rest.
-3. Ask with AskUserQuestion: reconstruct all candidates (recommended) / let me pick (then ask which ids, as text) / none. Read `tasks_shared` from `.midas/config.yml`: when it is not true, say that `.midas/tasks/` is local to this clone.
-4. Read `references/retro-research-prompt.md`. Launch one subagent per 2-3 candidates in one message (Agent tool, `subagent_type: general-purpose`), passing each candidate's ADR path, its card and `.yml`, the folder path `.midas/tasks/research/<adr-date>-<adr-id-lowercase>-<slug>/` (`adr-date` = the ADR's **Date** line, else its first commit date), the org/project/repo and `rehome` (true with `--rehome`).
+2. Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-paths.mjs` and follow the **Task folders** section of `../../reference/midas-paths.md`: `.midas/tasks/…` in this phase means its `tasks`. Skip candidates that already have a folder (`.midas/tasks/research/*-<adr-id-lowercase>-*`, under `tasks` or `legacyTasks`) unless `--only` names them. With `--rehome`, an existing folder still needs `outputs/original-adr.md`: copy the ADR there (`cp`) and add the `decision-log.md` header from the prompt if it lacks one, without redoing the rest.
+3. Ask with AskUserQuestion: reconstruct all candidates (recommended) / let me pick (then ask which ids, as text) / none. When the resolver's `tasksShared` is false, say that the research folders stay local to this clone.
+4. Read `references/retro-research-prompt.md`. Launch one subagent per 2-3 candidates in one message (Agent tool, `subagent_type: general-purpose`), passing each candidate's ADR path, its card and `.yml`, the folder's absolute path `<tasks>/research/<adr-date>-<adr-id-lowercase>-<slug>/` (`adr-date` = the ADR's **Date** line, else its first commit date), the org/project/repo and `rehome` (true with `--rehome`).
 5. List the folders created and, for each, the command to continue: `/agentic-midas:develop <work item id> --research=<folder>` (or the folder alone when no work item is known).
 6. **Rehome** (only with `--rehome`, once every ADR has a folder with `outputs/original-adr.md`):
    1. Show the mapping `| ADR | File | Folder |` and confirm with AskUserQuestion.
-   2. Run `docs-operator` once: re-point each card — `source: task`, `source_path: <folder>/`, `source_commit` empty until the folders are committed, the **Links** source line pointing at the folder and its `decision-log.md` — then rewrite `decisions/INDEX.md` and regenerate `.midas/docs/INDEX.md` (the ADR folder leaves "Existing sources").
+   2. Run `docs-operator` once: re-point each card — `source: task`, `source_path: <folder>/` (a folder in the home written as `home:.midas/tasks/…`), `source_commit` empty until the folders are committed, the **Links** source line pointing at the folder and its `decision-log.md` — then rewrite `decisions/INDEX.md` and regenerate `.midas/docs/INDEX.md` (the ADR folder leaves "Existing sources").
    3. List what still points at the ADR folder: `git grep -n -I -e '<adr-dir>/' -- . ':!.midas/tasks'`. References by id alone (`JF005`) stay valid, since cards and folders keep the ids.
    4. Tell the user the ADR folder can now be deleted, once those references are updated and the folders committed. Never delete it yourself: it is a team decision.
 
@@ -97,7 +97,7 @@ Skip with `--research=none` (and no `--rehome`).
 - Constraints applied as standards (and skipped)
 - Research folders reconstructed, with their next step
 - With `--rehome`: cards re-pointed, and the references to the ADR folder still to update
-- Next: commit `.midas/docs/decisions/` if the docs are shared (and `.midas/tasks/` when `tasks_shared`); re-run `/agentic-midas:adr-distill` after an ADR changes. After a rehome there are no ADRs left to watch: new decisions come from `/agentic-midas:develop`.
+- Next: commit `.midas/docs/decisions/` if the docs are shared, and the research folders when `tasksShared` (in the home repo, when they are there); re-run `/agentic-midas:adr-distill` after an ADR changes. After a rehome there are no ADRs left to watch: new decisions come from `/agentic-midas:develop`.
 
 ---
 
