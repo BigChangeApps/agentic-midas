@@ -19,19 +19,64 @@ export class MidasPathsError extends Error {
   name = 'MidasPathsError'
 }
 
+const linesOf = yaml => yaml.replace(/^\uFEFF/, '').split(/\r?\n/)
+const keyLine = key => new RegExp(`^${key}\\s*:(\\s|$)`)
+
+// A plain or quoted YAML scalar without its comment: `'a # b'` stays whole, `a # b` is `a`.
+function scalarOf(raw) {
+  const quoted = /^(['"])(.*?)\1/.exec(raw.trim())
+  return quoted ? { value: quoted[2], quoted: true } : { value: raw.trim().replace(/(^|\s+)#.*$/, ''), quoted: false }
+}
+
 // A top-level `key: value` plain or quoted scalar from a flat YAML file. Block scalars and flow collections are not supported.
 export function readTopLevelScalar(yaml, key) {
-  const line = yaml
-    .replace(/^﻿/, '')
-    .split(/\r?\n/)
-    .find(l => new RegExp(`^${key}\\s*:(\\s|$)`).test(l))
+  const line = linesOf(yaml).find(l => keyLine(key).test(l))
   if (!line) return undefined
 
-  const raw = line.slice(line.indexOf(':') + 1).trim()
-  const quoted = /^(['"])(.*?)\1/.exec(raw)
-  const value = quoted ? quoted[2] : raw.replace(/(^|\s+)#.*$/, '')
-
+  const { value, quoted } = scalarOf(line.slice(line.indexOf(':') + 1))
   return value && (quoted || !YAML_NULLS.includes(value)) ? value : undefined
+}
+
+// Splits a flow list's inside on commas outside quotes: `"a,b", c` → ['"a,b"', ' c'].
+function flowItems(inside) {
+  const { items, current } = [...inside].reduce(
+    ({ items, current, quote }, char) => {
+      if (quote) return { items, current: current + char, quote: char === quote ? null : quote }
+      if (char === "'" || char === '"') return { items, current: current + char, quote: char }
+      if (char === ',') return { items: [...items, current], current: '', quote: null }
+      return { items, current: current + char, quote: null }
+    },
+    { items: [], current: '', quote: null },
+  )
+  return [...items, current].map(item => scalarOf(item).value).filter(Boolean)
+}
+
+const isBlank = line => /^\s*(#.*)?$/.test(line)
+const ITEM = /^\s*-(\s|$)/
+
+// A top-level list: a block list (`key:` then `- item` lines, indented or not, comment lines allowed), a one-line
+// flow list (`key: [a, "b,c"]`) or a single scalar. Missing or empty, it is []. Nested structures are not supported:
+// a mapping item or a flow list spread over several lines throws rather than being misread.
+export function readTopLevelList(yaml, key) {
+  const lines = linesOf(yaml)
+  const at = lines.findIndex(l => keyLine(key).test(l))
+  if (at === -1) return []
+
+  const { value } = scalarOf(lines[at].slice(lines[at].indexOf(':') + 1))
+  if (value.startsWith('[')) {
+    const flow = /^\[(.*)\]$/.exec(value)
+    if (!flow) throw new MidasPathsError(`${key}: write the list on one line ([a, b]) or as "- item" lines.`)
+    return flowItems(flow[1])
+  }
+  if (value && !YAML_NULLS.includes(value)) return [value]
+
+  const rest = lines.slice(at + 1)
+  const end = rest.findIndex(l => !isBlank(l) && !ITEM.test(l))
+  const items = (end === -1 ? rest : rest.slice(0, end)).filter(l => ITEM.test(l)).map(l => scalarOf(l.replace(/^\s*-/, '')))
+  if (items.some(item => !item.quoted && /:(\s|$)/.test(item.value))) {
+    throw new MidasPathsError(`${key}: list plain items (- a.md), not mappings; quote an item that contains ": ".`)
+  }
+  return items.map(item => item.value).filter(Boolean)
 }
 
 const configPath = dir => join(dir, MIDAS_DIR, CONFIG_FILE)

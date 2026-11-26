@@ -35,6 +35,27 @@ Every skill that creates or looks up a task folder runs the resolver once, at th
 - **Committing** follows `tasksShared`. When false, task folders are never staged. When true, in repo mode the task folder is staged with the code, as before. A folder resumed under `legacyTasks` follows the code repo's own rules instead: stage it with the code only when that repo's `.midas/config.yml` says `tasks_shared: true` and git doesn't ignore it (`git check-ignore -q <folder>` fails). In home mode it is never staged with the code: commit it in the home repo on its own (`git -C <home> add <folder>`, then `docs: #<id> <slug>` or the home's own commit rules), after the same `AskUserQuestion` yes as the code commit, and push the home only when the user says so. The dashboard files (`dashboard.html`, `dashboard-data.js`) stay unstaged either way.
 - **Permissions.** In home mode the task folder is outside the session's repo, so Claude Code asks before each write there unless the home is in the user's `permissions.additionalDirectories`. When a write to it is refused, say that and how to add it; don't fall back to the repo's `.midas/tasks`.
 
+## Standards cascade
+
+Standards come in three layers, from the most general: the home's `.midas/docs/standards/all/`, the home's `.midas/docs/standards/<stack>/` (the repo's `stack` in `repos.json`), and the repo's own `.midas/docs/standards/`. Each layer keeps the repo layout, `<category>/<name>.md`, and that relative path is the key:
+
+- A file with the same key in a later layer replaces the earlier one whole. To change a shared rule for one repo, copy the file to the same path in the repo and edit it there.
+- `standards_exclude` in the repo's `.midas/config.yml` drops inherited keys this repo doesn't follow:
+
+  ```yaml
+  standards_exclude:
+    - process/pull-requests.md
+  ```
+
+- Without a home there is only the repo layer; a repo missing from `repos.json` gets no stack layer, and a warning.
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-standards.mjs [--cwd DIR]          # JSON: layers, standards (key, layer, path), overridden, excluded, warnings
+node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-standards.mjs [--cwd DIR] --paths  # the winning files, one per line; warnings on stderr
+```
+
+The repo's `.midas/docs/INDEX.md` still describes its own standards; skills add every winner `--paths` prints to `standards_sources`, so an inherited file and a repo file the index missed both get in. Rules that conflict across differently named files are not resolved by the script: the repo's own standard wins.
+
 ## How the home is found
 
 1. `MIDAS_HOME` (per developer, `~` allowed).

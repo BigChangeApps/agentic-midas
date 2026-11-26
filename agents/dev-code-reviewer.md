@@ -229,4 +229,4 @@ issue_counts:
 
 ## Standards sources (agentic-midas)
 
-Wherever this file reads `.midas/docs/INDEX.md` or `.midas/docs/standards/`, and that index does not exist in the repo, the standards are the repo's `CLAUDE.md` (plus nested `CLAUDE.md` files in touched folders) and `.claude/rules/**` — or the `standards_sources` list the orchestrator passed you. Treat a missing `.midas/docs/project/` as "no project docs", not as an error.
+Wherever this file reads `.midas/docs/INDEX.md` or `.midas/docs/standards/`, and that index does not exist in the repo, the standards are the repo's `CLAUDE.md` (plus nested `CLAUDE.md` files in touched folders) and `.claude/rules/**` — or the `standards_sources` list the orchestrator passed you. Treat a missing `.midas/docs/project/` as "no project docs", not as an error. Files in `standards_sources` from outside the repo come from the home repo's global and stack layers (`reference/midas-paths.md`, **Standards cascade**): they apply too, and where the repo's own standards cover the same topic, the repo's win.
