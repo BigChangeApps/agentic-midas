@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { MidasPathsError, readTopLevelScalar, resolveMidasPaths } from './midas-paths.mjs'
+import { MidasPathsError, readTopLevelList, readTopLevelScalar, resolveMidasPaths } from './midas-paths.mjs'
 
 const SCRIPT = fileURLToPath(new URL('./midas-paths.mjs', import.meta.url))
 
@@ -343,4 +343,33 @@ test('the CLI says git is missing rather than that there is no repo', () => {
 
   assert.equal(result.status, 1)
   assert.match(result.stderr, /git is not on PATH/)
+})
+
+test('readTopLevelList reads a block list or a flow list, without quotes or comments', () => {
+  const yaml = ['role: home', 'standards_exclude:  # inherited files this repo opts out of', '  - process/pull-requests.md', "  - 'global/security.md'  # own copy", '', 'other: [a, b]', 'after: 1'].join('\n')
+
+  assert.deepEqual(readTopLevelList(yaml, 'standards_exclude'), ['process/pull-requests.md', 'global/security.md'])
+  assert.deepEqual(readTopLevelList(yaml, 'other'), ['a', 'b'])
+  assert.deepEqual(readTopLevelList('x: []\n', 'x'), [])
+  assert.deepEqual(readTopLevelList('x:\n', 'x'), [])
+  assert.deepEqual(readTopLevelList('role: home\n', 'x'), [])
+  assert.deepEqual(readTopLevelList('x: single\n', 'x'), ['single'])
+})
+
+test('readTopLevelList reads unindented items, skips comment lines, and keeps quoted commas in a flow list', () => {
+  assert.deepEqual(readTopLevelList('x:\n- a.md\n- b.md\ny: 1\n', 'x'), ['a.md', 'b.md'])
+  assert.deepEqual(readTopLevelList('x:\n  - a.md\n  # off for now\n  - b.md\n', 'x'), ['a.md', 'b.md'])
+  assert.deepEqual(readTopLevelList('\uFEFFx:\r\n  - "b # c.md"\r\n', 'x'), ['b # c.md'])
+  assert.deepEqual(readTopLevelList('x: ["a,b.md", c.md]\n', 'x'), ['a,b.md', 'c.md'])
+  assert.deepEqual(readTopLevelList('x_more:\n  - a\n', 'x'), [])
+})
+
+test('readTopLevelList refuses a flow list it cannot read rather than drop it', () => {
+  assert.throws(() => readTopLevelList('x: [a,\n  b]\n', 'x'), MidasPathsError)
+  assert.throws(() => readTopLevelList('x:\n  - name: a.md\n', 'x'), MidasPathsError)
+})
+
+test('readTopLevelList reads top-level keys only and keeps a quoted item with a colon', () => {
+  assert.deepEqual(readTopLevelList('nested:\n  x:\n  - a.md\n', 'x'), [])
+  assert.deepEqual(readTopLevelList('x:\n  - "odd: name.md"\n', 'x'), ['odd: name.md'])
 })

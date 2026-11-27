@@ -42,6 +42,7 @@ Read standards for the bug's area while analysing and planning, not as a bulk up
 
 - If `.midas/docs/INDEX.md` exists, read it, **then the specific standard files it points to that match the bug area** (an API bug → API and error-handling standards; a query bug → data-access standards). Reading INDEX.md alone is not enough. Also read the review lessons for the bug's module (`.midas/docs/knowledge/review-lessons/<module>.md`) and the decision cards INDEX.md lists for that area, when they exist.
 - Otherwise the standards are the repo's `CLAUDE.md` (plus nested `CLAUDE.md` files in the folders you touch) and `.claude/rules/**`. Mention once, at the end, that `/agentic-midas:init` can build `.midas/docs/` from the code, the pipelines and past PR reviews.
+- Either way, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-standards.mjs --paths`: the files it prints from outside the repo are the home repo's global and stack standards that apply here (`../../reference/midas-paths.md`, **Standards cascade**). Pick the ones that match the bug area by their path and first heading (`head -n 5`), and read those in full; where the repo's own standards cover the same topic, the repo's win.
 - Apply them in the fix plan (Step 4) and the fix (Step 7).
 
 ### Step 3: Analyse and assess complexity
