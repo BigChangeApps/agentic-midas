@@ -135,6 +135,22 @@ claude plugin marketplace update agentic-midas
 
 Then update the plugin from `/plugin`, or reinstall it.
 
+## Moving to the home repo (0.17.0)
+
+From 0.17.0 the plugin works from a shared home repo, `agentic-midas-home`, instead of setting up each repo on its own. Once per machine:
+
+1. Update the plugin (above).
+2. Clone `agentic-midas-home` next to your other repos, and add to `~/.zshrc`: `export MIDAS_HOME=<that folder>`.
+3. Add the same folder to `permissions.additionalDirectories` in `~/.claude/settings.json`, so sessions in a code repo can write task folders there without asking.
+4. From the home, run `node <agentic-midas>/scripts/midas-repos.mjs check`. It lists the repos you lack, with the clone line for each.
+
+Then start on an item from the home with `/agentic-midas:start <id>`. It finds the repo, recommends the next command and asks you which path to take. Every command also works when started straight in a repo, as before.
+
+What changes, and what stays:
+- **Task folders** for new tasks go to the home's `.midas/tasks/`, and are committed there on their own. Folders already in a repo's `.midas/tasks/` are still found, and resume where they are.
+- **Standards:** a repo's own `.midas/docs/` stays in the repo. On top of it come the home's shared standards for every repo and for the repo's stack. A repo file at the same path replaces a shared one, and `standards_exclude` opts out of one.
+- **Without `MIDAS_HOME`** (and without `home:` in a repo's `.midas/config.yml`), everything works per repo, exactly as in 0.15.
+
 **Offer it in a team repo:** add this to that repo's `.claude/settings.json`. Anyone who trusts the folder is then prompted to install the plugin.
 
 ```json
