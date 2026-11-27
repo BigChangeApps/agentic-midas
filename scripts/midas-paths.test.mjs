@@ -38,6 +38,8 @@ test('a repo without a home keeps everything in the repo', () => {
     home: null,
     homeSource: null,
     tasks: join(repo, '.midas', 'tasks'),
+    legacyTasks: null,
+    tasksShared: false,
     docs: join(repo, '.midas', 'docs'),
     homeDocs: null,
     config: join(repo, '.midas', 'config.yml'),
@@ -61,6 +63,34 @@ test('MIDAS_HOME moves tasks to the home repo and keeps docs in the code repo', 
   assert.equal(paths.docs, join(repo, '.midas', 'docs'))
   assert.equal(paths.homeDocs, join(home, '.midas', 'docs'))
   assert.deepEqual(paths.warnings, [])
+})
+
+test('in home mode the repo\'s own task folders stay findable as legacyTasks', () => {
+  const root = sandbox()
+  const home = homeRepo(join(root, 'agentic-midas-home'))
+  const repo = gitRepo(join(root, 'mono-repo'))
+  const fresh = gitRepo(join(root, 'payments'))
+  mkdirSync(join(repo, '.midas', 'tasks', 'development'), { recursive: true })
+
+  assert.equal(resolveMidasPaths({ cwd: repo, env: { MIDAS_HOME: home } }).legacyTasks, join(repo, '.midas', 'tasks'))
+  assert.equal(resolveMidasPaths({ cwd: fresh, env: { MIDAS_HOME: home } }).legacyTasks, null)
+  assert.equal(resolveMidasPaths({ cwd: repo, env: {} }).legacyTasks, null)
+  mkdirSync(join(home, '.midas', 'tasks'), { recursive: true })
+  assert.equal(resolveMidasPaths({ cwd: home, env: {} }).legacyTasks, null)
+})
+
+test('tasksShared comes from the config next to the task folders', () => {
+  const root = sandbox()
+  const home = gitRepo(join(root, 'agentic-midas-home'), 'role: home\ntasks_shared: true\n')
+  const repo = gitRepo(join(root, 'payments'), 'tasks_shared: false\n')
+  const sharing = gitRepo(join(root, 'xero'), 'tasks_shared: true # committed\n')
+
+  assert.equal(resolveMidasPaths({ cwd: repo, env: { MIDAS_HOME: home } }).tasksShared, true)
+  assert.equal(resolveMidasPaths({ cwd: repo, env: {} }).tasksShared, false)
+  assert.equal(resolveMidasPaths({ cwd: sharing, env: {} }).tasksShared, true)
+
+  const privateHome = gitRepo(join(root, 'private-home'), 'role: home\n')
+  assert.equal(resolveMidasPaths({ cwd: sharing, env: { MIDAS_HOME: privateHome } }).tasksShared, false)
 })
 
 test('home: in the repo config is read relative to the repo root', () => {

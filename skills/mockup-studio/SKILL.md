@@ -122,7 +122,7 @@ Read `references/visual-companion.md` for the full protocol. Then:
 
 When a user runs `/agentic-midas:mockup-studio "<screen or feature>"` (no `task_path` from an orchestrator):
 
-1. Capture the clock; create `.midas/tasks/mockups/YYYY-MM-DD-<short-name>/` with an `analysis/` subdir.
+1. Capture the clock; create `<tasks>/mockups/YYYY-MM-DD-<short-name>/` with an `analysis/` subdir, where `<tasks>` is the `tasks` path `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-paths.mjs` prints (the home repo's when there is one); show its `warnings`, and see `../../reference/midas-paths.md`, **Task folders**, when a write there is refused.
 2. Defaults: `output_subdir = analysis/mockups`, `iteration = full`, `emit_index_rows = false`, `format` from `.midas/config.yml` `mockup_format` (default `html`).
 3. Build `context` from the user's prompt (and any referenced files/standards).
 4. Run Steps 1–7. At the end, report the gallery URL and saved file paths.

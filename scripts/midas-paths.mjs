@@ -130,13 +130,19 @@ export function resolveMidasPaths({ cwd = process.cwd(), env = process.env, user
 
   const midas = dir => join(dir, MIDAS_DIR)
   const entry = repoEntry(repo, home.dir)
+  const tasksOwner = home.dir ?? repo
+  // Task folders a repo kept before it had a home: still read, so old tasks can be resumed, but nothing new goes there.
+  const repoTasks = repo && join(midas(repo), 'tasks')
+  const legacyTasks = home.dir && repoTasks && existsSync(repoTasks) ? repoTasks : null
 
   return {
     mode: home.dir ? 'home' : 'repo',
     repo,
     home: home.dir,
     homeSource: home.source,
-    tasks: join(midas(home.dir ?? repo), 'tasks'),
+    tasks: join(midas(tasksOwner), 'tasks'),
+    legacyTasks,
+    tasksShared: readConfigScalar(tasksOwner, 'tasks_shared') === 'true',
     docs: repo ? join(midas(repo), 'docs') : null,
     homeDocs: home.dir ? join(midas(home.dir), 'docs') : null,
     config: configPath(repo ?? home.dir),

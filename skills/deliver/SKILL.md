@@ -35,7 +35,7 @@ Read first, relative to this skill's base directory:
 
 1. Take the id from `$ARGUMENTS`: digits, `#123`, `AB#123`, a link with `_workitems/edit/<id>` or `?workitem=<id>`, or a `.midas/tasks/delivery/…` folder. With no id, ask for one. Name the session `Deliver #<id>: <title>`.
 2. Load the item (`wit_work_item`, `action: "get"`, expand Relations), its comments, its parent's title, its children and its `Pull Request` links. Epics and Features: say `/agentic-midas:plan-epic` plans those, and stop.
-3. Find an existing delivery folder `.midas/tasks/delivery/*-<id>-*/` under the workspace root. With one, read its state and say in one line where it stands. Without one, run `date -u +"%Y-%m-%dT%H:%M:%SZ"`, create `.midas/tasks/delivery/YYYY-MM-DD-<id>-<slug>/` with `orchestrator-state.yml` and `journal.md` as `references/state-and-journal.md` shows, and create one task per stage (TaskCreate).
+3. Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-paths.mjs` and follow the **Task folders** section of `../../reference/midas-paths.md`: `.midas/tasks/…` below means its `tasks`. Find an existing delivery folder `.midas/tasks/delivery/*-<id>-*/`, under `tasks` and then `legacyTasks`. With one, read its state and say in one line where it stands. Without one, run `date -u +"%Y-%m-%dT%H:%M:%SZ"`, create `.midas/tasks/delivery/YYYY-MM-DD-<id>-<slug>/` with `orchestrator-state.yml` and `journal.md` as `references/state-and-journal.md` shows, and create one task per stage (TaskCreate).
 4. **Work out the real stage** from the evidence, not from the state file. Take the first row that fits:
 
    | Evidence | Stage to enter |

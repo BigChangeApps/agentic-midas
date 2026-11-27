@@ -192,7 +192,7 @@ When a subagent returns `decisions_needed` items, the orchestrator MUST present 
 
 ## 4. State Schema
 
-All orchestrators use `orchestrator-state.yml` at `.midas/tasks/[type]/YYYY-MM-DD-task-name/orchestrator-state.yml`. The `[type]` dir matches the workflow name except for migration, whose type dir is `migrations/` (plural).
+All orchestrators use `orchestrator-state.yml` at `.midas/tasks/[type]/YYYY-MM-DD-task-name/orchestrator-state.yml`. The `[type]` dir matches the workflow name except for migration, whose type dir is `migrations/` (plural). `.midas/tasks` here and in every orchestrator means the `tasks` path from `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-paths.mjs`: the home repo's when there is one. `../../../reference/midas-paths.md`, **Task folders**, says how to look up, record and commit them.
 
 ### Timestamp Rule (applies to ALL timestamps everywhere)
 
@@ -265,6 +265,7 @@ task:
   status: pending | in_progress | completed | failed | blocked
   tags: []
   priority: null  # high | medium | low
+  repos: []  # {name, path} per repo the task changes; see reference/midas-paths.md, Task folders
 ```
 
 The three keys above are the only `options` keys every orchestrator shares. `options` is an **open map** nested under `orchestrator:`: per-orchestrator keys are listed in each SKILL.md "Domain Context" section.
@@ -344,7 +345,7 @@ phase_summaries:
 2. **Determine starting phase**: New task starts Phase 1; resume reads state for first incomplete phase
 3. **Capture the clock**: run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash NOW — you do NOT know the time from context. Use the result for every timestamp written in this turn (`created`, `updated`, `generated`, `phases[].started`). This is a MANDATORY step, not optional: writing `created: 2026-06-12` or `T00:00:00Z` without having run `date` is the documented failure mode (§ 4 Timestamp Rule).
 4. **Read project config**: read `.midas/config.yml` if it exists; set `orchestrator.options.html_output` from its `html_output` key (default `true` when the file or key is absent — § 4 "Project Configuration"). This single read seeds the state; all dashboard/companion gates below read `options.html_output` from state.
-5. **Create task directory**: `.midas/tasks/<type>/<YYYY-MM-DD-slug>/` plus the subdirectories this workflow owns — each SKILL.md names its own; there is no structure shared by all five workflows *(skip on resume)*
+5. **Create task directory**: `<tasks>/<type>/<YYYY-MM-DD-slug>/` (`tasks` from the resolver, § 4) plus the subdirectories this workflow owns — each SKILL.md names its own; there is no structure shared by all five workflows *(skip on resume)*
 6. **Create state file**: `orchestrator-state.yml` *(skip on resume)*
 7. **Set up operator dashboard** (§ 8) — *skip this entire step when `options.html_output` is false*: copy `../assets/dashboard.html` (sibling `assets/` directory of this references/ file) to the task root as `dashboard.html`, write the initial `dashboard-data.js`, then **auto-open it in the user's browser** with the platform opener — `open "[abs-task-path]/dashboard.html"` (macOS), `xdg-open` (Linux), `start ""` (Windows). Pass the **plain absolute filesystem path — NEVER construct a `file://` URL** (hand-built URLs get mangled, e.g. `file///` missing the colon; the opener resolves plain paths itself). If the command fails, just print the path hint — never block initialization. On resume: re-copy `dashboard.html` only if missing; regenerate `dashboard-data.js` from state; then auto-open it in the browser again (same opener as a new task — if the tab is already open the OS focuses it rather than duplicating).
 8. **Create task items**: `TaskCreate` for all phases, then `TaskUpdate addBlockedBy` for dependencies. On resume, also restore completed phase statuses. When `TaskCreate`/`TaskUpdate` are unavailable in the session, record `task_ids: {}` and treat `orchestrator-state.yml` as the sole phase tracker; every other step is unchanged.

@@ -71,7 +71,9 @@ Store the analysis for Phases 3 and 6.
 
 ## PHASE 4: Choose Where the Docs Live
 
-Check whether the repo already commits any Claude files (`git ls-files CLAUDE.md .claude`) and whether `.gitignore` ignores `.claude/` or `.midas/`. Then ask with AskUserQuestion:
+First run `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-paths.mjs`. When its `mode` is `home`, task folders live in the home repo and its config decides whether they are shared: ask only whether to commit `.midas/docs` or keep `.midas/` local, don't touch `.midas/tasks` in `.gitignore`, and leave `tasks_shared` out of this repo's config.
+
+Otherwise, check whether the repo already commits any Claude files (`git ls-files CLAUDE.md .claude`) and whether `.gitignore` ignores `.claude/` or `.midas/`. Then ask with AskUserQuestion:
 
 - **"Commit .midas/docs and .midas/tasks with the repo"** — the team shares the standards and the task folders: research, specs, plans and the decision logs behind decision cards. Recommend this when the team wants decisions recorded in the framework rather than in ADR files: `/develop` then records new decisions as cards backed by their task folder, and `adr-distill --rehome` can retire the ADR folder. Sets `tasks_shared: true`.
 - **"Commit .midas/docs only"** — the team shares the standards; task folders stay personal. Add `.midas/tasks/` to `.gitignore` — a repo change you'll show in the summary, not commit. Sets `tasks_shared: false`.

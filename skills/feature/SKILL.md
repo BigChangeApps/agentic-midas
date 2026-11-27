@@ -140,7 +140,7 @@ The code changes run in **sub-sessions**, one per planned repo, each opened in t
    - the review findings: each one fixed (and how) or skipped (and why);
    - how to test it locally: concrete steps per repo from the sub-session reports (config and secrets, migrations, seed data, feature flags, URLs), then the clicks that show each criterion.
 
-   Without the Artifact tool, write `<root>/.midas/<id>/summary.html` and use its `file:///` path.
+   Without the Artifact tool, write `<tasks>/feature/<id>/summary.html` and use its `file:///` path. `<tasks>` is the `tasks` path `node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-paths.mjs --cwd <root>/<home or any planned repo>` prints when it reports a home (`mode: home`); show its `warnings`. Without a home, write `<root>/.midas/<id>/summary.html` as before, outside every repo. Never stage the summary with the code.
 5. Call `feature_status` with the `summaryUrl`. Tell the user to review the uncommitted changes in each sub-session's diff pane (link each session), using the summary as the map, then press **Commit & PR**. Comments they leave on a diff go to that sub-session. If they ask for changes, send them to the sub-session, review again, and update the summary.
 
 ## 6. Commit and pull requests
