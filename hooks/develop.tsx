@@ -3,7 +3,7 @@ import type { EngineInterface, On } from 'claude-code'
 
 import { EDIT_TOOLS, destructiveOp, isText, pathOf } from './feature'
 
-// The task a /develop, /research, /performance or /migration run keeps under .midas/tasks/<type>/<task>/.
+// The task a /develop or /deliver run keeps under .midas/tasks/<type>/<task>/.
 const STATE_FILE = /\/\.midas\/tasks\/[^/]+\/[^/]+\/orchestrator-state\.yml$/
 const OPEN = ['pending', 'in_progress', 'blocked']
 
@@ -19,12 +19,23 @@ export function taskStatusOf(yaml: string): string | undefined {
 
 export const isOpen = (status?: string) => status !== undefined && OPEN.includes(status)
 
+const DELIVERY = /\/\.midas\/tasks\/delivery\//
+const GATE_RULE =
+  'Every MANDATORY GATE still uses AskUserQuestion, whatever the permission mode. The only gates answered without asking are those a delivery mandate recorded in a delivery state file (delivery_context.mandate.may) covers: read it from the file, never from memory.'
+
+export const isDelivery = (path: string): boolean => DELIVERY.test(path)
+
+// A delivery runs its builder inside it, so the builder's state file doesn't take the reminder from an open delivery.
+export function nextTask(current: string | null, written: string): string {
+  return current && isDelivery(current) && !isDelivery(written) ? current : written
+}
+
 export function taskReminderText(statePath: string): string {
-  return [
-    `A Midas orchestrator workflow is in progress; its state is ${statePath}.`,
-    'Before going on, read that file, resume at the first phase not in completed_phases, and if the skill that owns it (named by the task folder: development → /agentic-midas:develop) is no longer in your context, invoke it again with the task folder.',
-    'Every MANDATORY GATE still uses AskUserQuestion, whatever the permission mode.',
-  ].join('\n')
+  const resume = isDelivery(statePath)
+    ? 'Before going on, read that file. If its status is blocked with a waiting_for, the delivery is waiting for people or a pipeline: leave it until the user asks to carry on. Otherwise invoke /agentic-midas:deliver with the task folder: it works out the stage from the work item, git and the pull requests, and treats the state file as a cache.'
+    : 'Before going on, read that file, resume at the first phase not in completed_phases, and if /agentic-midas:develop is no longer in your context, invoke it again with the task folder.'
+
+  return [`A Midas orchestrator workflow is in progress; its state is ${statePath}.`, resume, GATE_RULE].join('\n')
 }
 
 // Subagents never throw away work: git commands that discard changes are refused, `rm -r` is put to the user.
@@ -49,7 +60,7 @@ export function registerDevelop(on: On) {
   on('tool.call', { tool: EDIT_TOOLS }, async ($, e, next) => {
     const ran = await next(e)
     const path = pathOf(e)
-    if (ran.deny === undefined && !ran.isError && isStateFile(path)) await update($, task, () => path)
+    if (ran.deny === undefined && !ran.isError && isStateFile(path)) await update($, task, current => nextTask(current, path))
 
     return ran
   })

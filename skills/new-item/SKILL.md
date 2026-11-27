@@ -43,9 +43,10 @@ On **"Create it."** (the band's Create) or a clear yes in chat:
 3. Map each `##` section and each Details line to its ADO field (the reference's tables).
 4. Call `wit_work_item_write` with `action: "create"`, `project: "BigChange"`, the exact `workItemType` (`Bug`, `Enabler`, `User Story`) and those fields, plus `Custom.WSJF: 0` for an Enabler or User Story (the reference's **Any type** says why), with rich text as the reference's Creating rule says.
 5. With a parent: `wit_work_item_link_write`, `action: "link"`, `updates: [{ id: <new id>, linkToId: <parent id>, type: "parent" }]`.
-6. Add a first line to the doc: `Created as [<Type> #<id>](<link>)`. Then call `draft_work_item` again with the same values plus `createdId`.
-7. Rename the session `New item #<id>: <title>`.
-8. In chat: `Created <Type> #<id>: <title>`, then the link, then `Parent: #<id>` if one was linked.
+6. Link the other items its fields mention, as the reference's **Linked items** says.
+7. Add a first line to the doc: `Created as [<Type> #<id>](<link>)`. Then call `draft_work_item` again with the same values plus `createdId`.
+8. Rename the session `New item #<id>: <title>`.
+9. In chat: `Created <Type> #<id>: <title>`, then the link, then `Parent: #<id>` if one was linked and `Related: #<id>, …` for the items linked in step 6.
 
 If the create fails, show the error as it came back, say **nothing was created**, and stop. The band stays, so the user can fix the doc and press Create again.
 

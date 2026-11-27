@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { isOpen, isStateFile, subagentVerdict, taskReminderText, taskStatusOf } from './develop'
+import { isOpen, isStateFile, nextTask, subagentVerdict, taskReminderText, taskStatusOf } from './develop'
 
 const STATE = `orchestrator:
   completed_phases: [1, 2]
@@ -17,6 +17,7 @@ task_context:
 
 test('only a .midas task state file names a running task', async () => {
   expect(isStateFile('/ws/job-finance/.midas/tasks/development/2026-10-22-361453-send-quote/orchestrator-state.yml')).toBe(true)
+  expect(isStateFile('/ws/.midas/tasks/delivery/2026-11-20-361453-send-quote/orchestrator-state.yml')).toBe(true)
   expect(isStateFile('/ws/job-finance/.midas/tasks/development/orchestrator-state.yml')).toBe(false)
   expect(isStateFile('/ws/job-finance/src/orchestrator-state.yml')).toBe(false)
 })
@@ -36,11 +37,46 @@ test('pending, in-progress and blocked tasks are open; finished or unknown ones 
   expect(isOpen(undefined)).toBe(false)
 })
 
+const DELIVERY_STATE = `orchestrator:
+  completed_phases: [intake, ready]
+task:
+  title: Send quote by email
+  status: blocked           # pending | in_progress | blocked | completed | failed
+  work_item: { id: 361453, type: User Story, status: ignored }
+delivery_context:
+  stage: review
+`
+
+test('the task status of a delivery state file ignores the comment and the inline work item', async () => {
+  expect(taskStatusOf(DELIVERY_STATE)).toBe('blocked')
+})
+
 test('the reminder names the state file and the gate rule', async () => {
   const text = taskReminderText('/ws/.midas/tasks/development/t/orchestrator-state.yml')
   expect(text).toContain('/ws/.midas/tasks/development/t/orchestrator-state.yml')
   expect(text).toContain('/agentic-midas:develop')
+  expect(text).toContain('completed_phases')
+  expect(text).toContain('delivery_context.mandate.may')
   expect(text).toContain('AskUserQuestion')
+})
+
+test('a delivery is resumed from the evidence, and a waiting one is left alone', async () => {
+  const text = taskReminderText('/ws/.midas/tasks/delivery/t/orchestrator-state.yml')
+  expect(text).toContain('/agentic-midas:deliver')
+  expect(text).not.toContain('/agentic-midas:develop')
+  expect(text).not.toContain('first phase not in completed_phases')
+  expect(text).toContain('waiting_for')
+  expect(text).toContain('delivery_context.mandate.may')
+  expect(text).toContain('AskUserQuestion')
+})
+
+test('an open delivery keeps the reminder while its builder writes its own state', async () => {
+  const delivery = '/ws/.midas/tasks/delivery/t/orchestrator-state.yml'
+  const development = '/ws/.midas/tasks/development/t/orchestrator-state.yml'
+  expect(nextTask(null, development)).toBe(development)
+  expect(nextTask(development, delivery)).toBe(delivery)
+  expect(nextTask(delivery, development)).toBe(delivery)
+  expect(nextTask(delivery, delivery.replace('/t/', '/u/'))).toBe(delivery.replace('/t/', '/u/'))
 })
 
 test('subagents are refused git commands that discard work and asked about rm -r', async () => {

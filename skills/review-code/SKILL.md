@@ -53,7 +53,7 @@ When a finding shows a convention the repo's standards don't capture yet, say so
 
 ## 4. Post and vote
 
-1. Post each approved finding as a new thread on its file and line, as the reference says. Post them one by one.
+1. Post each approved finding as a new thread on its file and line, as the reference says. Post them one by one. End every comment's content with an empty line and then `🤖 AI-generated review comment`, so the author knows where it came from. Add that line when posting, not to the drafts.
 2. Ask which vote to cast (the proposed one first, marked Recommended), then cast it. "No vote" leaves the comments only.
 3. In chat: how many comments were posted, the vote, and the pull request link.
 
