@@ -171,7 +171,21 @@ The other repos:
 | A database change (`BigChange.Database`, a migration) | `Database` |
 | Nothing to deploy | `N/A` |
 
-For anything else, pick from the field's picklist. A project not listed here, or not sure which service it deploys as? Ask.
+**Spell each service the way the item's form lists it.** Every form shows the field as a multi-select control. ADO saves any text in it without checking, so a wrong spelling is never refused; it just doesn't match the form. User Stories and Enablers use the field's picklist, and the tables above follow it. The Bug form has its own list, which differs:
+
+| Picklist (User Story, Enabler) | Bug form |
+|---|---|
+| `BO REST API` | `BO.RestAPI` |
+| `MicrofrontEnd` | `Microfrontend` |
+| `Finance Outbox` | not offered: ask |
+
+Both lists can change, so read the live one before writing.
+- **Bug:** the `Values` input of the Services Required control in the Bug form layout, split on `;` and trimmed. Get the layout with `az rest` on `_apis/work/processes/<processId>/workitemtypes/<witRefName>/layout`. The process id is `capabilities.processTemplate.templateTypeId` from `_apis/projects/BigChange?includeCapabilities=true`, and the Bug's `witRefName` is in `_apis/work/processes/<processId>/workitemtypes`.
+- **Other types:** the field's picklist, read as **ADO requires fields** below says.
+
+Join the services with `;` and no spaces, in the order that list has them.
+
+For a service not in the tables, pick from that list. A project not listed here, or not sure which service it deploys as? Ask.
 
 The separate `BigChange.ScheduledTasks` repo is a migration still in progress: production runs the monolith's `BigChange.ScheduledTasks.Service`, so read and fix that one.
 
