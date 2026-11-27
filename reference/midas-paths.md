@@ -74,4 +74,5 @@ The home's `.midas/repos.json` lists every code repo: `name`, `folder` (where to
 node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-repos.mjs check            # repos you lack, extra clones, clones the map doesn't know
 node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-repos.mjs render --write   # regenerate the Repos section of the home's CLAUDE.md
 node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-repos.mjs render --check   # exit 1 when CLAUDE.md is out of date with the map
+node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-repos.mjs locate <name|folder|remote>   # JSON: the map entry and its local clones (dirs), the map's folder first
 ```
