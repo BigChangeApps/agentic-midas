@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // The home repo's map of code repos (.midas/repos.json): render it into the home's CLAUDE.md, and check local clones against it.
-// Usage: node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-repos.mjs render [--write|--check] | check [--root DIR]   (both take --home DIR)
+// Usage: node ${CLAUDE_PLUGIN_ROOT}/scripts/midas-repos.mjs render [--write|--check] | check [--root DIR] | locate <name|folder|remote> [--root DIR]
+//   (all take --home DIR)
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 import { flagValue, runCli } from './cli.mjs'
 import { resolveMidasPaths } from './midas-paths.mjs'
@@ -74,6 +75,15 @@ export function checkClones(repos, clones) {
   }
 }
 
+// The entry a repo name or folder (any case) or remote names; a name wins over a folder, a folder over a remote.
+export function findRepo(repos, query) {
+  const wanted = query.trim()
+  if (!wanted) return undefined
+
+  const same = value => value.toLowerCase() === wanted.toLowerCase()
+  return repos.find(repo => same(repo.name)) ?? repos.find(repo => same(repo.folder)) ?? findRepoByRemote(repos, wanted)
+}
+
 function formatReport({ found, missing, unmapped, noRemote }) {
   return [
     ...found.map(f => `Found: ${f.name} (${f.dirs.join(', ')})`),
@@ -120,9 +130,14 @@ const realpathOr = path => {
   }
 }
 
-function check(home, args) {
+// The clones next to the home (or under --root), the home itself left out.
+function localClones(home, args) {
   const homeReal = realpathOr(home)
-  const clones = scanClones(resolve(flagValue(args, '--root') ?? dirname(home))).filter(c => realpathOr(c.dir) !== homeReal)
+  return scanClones(resolve(flagValue(args, '--root') ?? dirname(home))).filter(c => realpathOr(c.dir) !== homeReal)
+}
+
+function check(home, args) {
+  const clones = localClones(home, args)
   const report = checkClones(readRepoMap(home), clones)
   const text = formatReport(report)
 
@@ -130,10 +145,35 @@ function check(home, args) {
   return report.missing.length > 0 ? 1 : 0
 }
 
-const USAGE = 'Usage: midas-repos.mjs render [--write|--check] [--home DIR] | check [--root DIR] [--home DIR]'
+const VALUE_FLAGS = ['--home', '--root']
+
+// The first argument that is neither a flag nor a flag's value.
+function positional(args) {
+  return args.find((arg, i) => !arg.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]))
+}
+
+function locate(home, args) {
+  const query = positional(args)
+  if (!query) throw new Error(USAGE)
+
+  const repos = readRepoMap(home)
+  const repo = findRepo(repos, query)
+  if (!repo) throw new RepoMapError(`${query} is not in ${MAP_FILE}. It has: ${repos.map(r => r.name).join(', ')}.`)
+
+  const { found } = checkClones([repo], localClones(home, args))
+  const dirs = found[0]?.dirs ?? []
+  const inMapFolder = dir => (basename(dir).toLowerCase() === repo.folder.toLowerCase() ? 0 : 1)
+  const ordered = [...dirs].sort((a, b) => inMapFolder(a) - inMapFolder(b) || a.localeCompare(b))
+
+  process.stdout.write(`${JSON.stringify({ ...repo, dirs: ordered }, null, 2)}\n`)
+  return 0
+}
+
+const USAGE = 'Usage: midas-repos.mjs render [--write|--check] | check [--root DIR] | locate <name|folder|remote> [--root DIR]; each takes --home DIR'
 
 await runCli(import.meta.url, ([command, ...args]) => {
   if (command === 'render') return render(homeFrom(args), args)
   if (command === 'check') return check(homeFrom(args), args)
+  if (command === 'locate') return locate(homeFrom(args), args)
   throw new Error(USAGE)
 })

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { REPO_MAP_END, REPO_MAP_START, checkClones, renderRepoMap, scanClones, updateClaudeMd } from './midas-repos.mjs'
+import { REPO_MAP_END, REPO_MAP_START, checkClones, findRepo, renderRepoMap, scanClones, updateClaudeMd } from './midas-repos.mjs'
 import { RepoMapError } from './repo-map.mjs'
 
 const SCRIPT = fileURLToPath(new URL('./midas-repos.mjs', import.meta.url))
@@ -168,4 +168,58 @@ test('CLI refuses an unknown command and an empty --home', () => {
   const empty = run(['check', '--home='], { cwd: sandbox() })
   assert.equal(empty.status, 1)
   assert.match(empty.stderr, /--home needs a value/)
+})
+
+test('findRepo matches a name or folder in any case, or any form of the remote', () => {
+  const repos = [PAYMENTS, MONOLITH]
+
+  assert.equal(findRepo(repos, 'bigchange.payments'), PAYMENTS)
+  assert.equal(findRepo(repos, 'mono-repo'), MONOLITH)
+  assert.equal(findRepo(repos, 'https://bigchange@dev.azure.com/bigchange/BigChange/_git/BigChange.Payments'), PAYMENTS)
+  assert.equal(findRepo(repos, '  BigChange  '), MONOLITH)
+  assert.equal(findRepo(repos, 'BigChange.Nope'), undefined)
+  assert.equal(findRepo(repos, ''), undefined)
+})
+
+test('CLI locate prints the map entry with its local clones, the folder named in the map first', () => {
+  const home = homeWithMap([PAYMENTS, MONOLITH])
+  const other = clone(join(home, '..', 'payments-363341'), PAYMENTS.remote)
+  const main = clone(join(home, '..', 'payments'), PAYMENTS.remote)
+
+  const result = run(['locate', 'BigChange.Payments', '--home', home])
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), { ...PAYMENTS, dirs: [main, other] })
+})
+
+test('CLI locate lists no clones for a mapped repo nobody has cloned', () => {
+  const home = homeWithMap([PAYMENTS, MONOLITH])
+
+  const result = run(['locate', 'mono-repo', '--home', home])
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout).dirs, [])
+})
+
+test('CLI locate fails on a repo the map does not have, naming the ones it does', () => {
+  const home = homeWithMap([PAYMENTS, MONOLITH])
+
+  const missing = run(['locate', 'BigChange.Nope', '--home', home])
+  assert.equal(missing.status, 1)
+  assert.match(missing.stderr, /BigChange\.Nope is not in .*repos\.json.*BigChange\.Payments, BigChange/)
+
+  const bare = run(['locate', '--home', home])
+  assert.equal(bare.status, 1)
+  assert.match(bare.stderr, /Usage/)
+})
+
+test('CLI locate takes the query after the flags too, and puts the map folder first in any case', () => {
+  const home = homeWithMap([PAYMENTS])
+  const other = clone(join(home, '..', 'a-payments-copy'), PAYMENTS.remote)
+  const main = clone(join(home, '..', 'Payments'), PAYMENTS.remote)
+
+  const result = run(['locate', '--home', home, 'BigChange.Payments'])
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout).dirs, [main, other])
 })
